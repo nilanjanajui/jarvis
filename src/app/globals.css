@@ -1,0 +1,108 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Share+Tech+Mono&display=swap');
+
+@import "tailwindcss";
+
+@theme {
+  /* Fonts */
+  --font-orbitron: 'Orbitron', sans-serif;
+  --font-mono: 'Share Tech Mono', monospace;
+
+  /* Custom animations */
+  --animate-spin-slow:    spin 25s linear infinite;
+  --animate-spin-reverse: spin-reverse 35s linear infinite;
+  --animate-pulse-glow:   pulse-glow 2.5s ease-in-out infinite;
+  --animate-blink:        blink 1.2s step-end infinite;
+  --animate-bar:          bar 1.4s ease-in-out infinite;
+}
+
+/* Custom keyframes */
+@keyframes spin-reverse {
+  from { transform: rotate(360deg); }
+  to   { transform: rotate(0deg); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.6; filter: blur(8px); }
+  50%       { opacity: 1;   filter: blur(14px); }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+@keyframes bar {
+  0%, 100% { transform: scaleY(0.3); }
+  50%       { transform: scaleY(1); }
+}
+
+@keyframes scan-line {
+  0%   { top: 0%;   opacity: 0.6; }
+  100% { top: 100%; opacity: 0; }
+}
+
+/* Base */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100vh;
+  overflow: hidden;
+  background-color: #060b14;
+  color: #00d4ff;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar       { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(0,212,255,0.2); border-radius: 2px; }
+
+/* HUD Card */
+.hud-card {
+  background: rgba(0, 18, 36, 0.75);
+  border: 1px solid rgba(0, 212, 255, 0.18);
+  padding: 14px;
+  position: relative;
+}
+
+/* Corner accents on cards */
+.hud-card::before,
+.hud-card::after {
+  content: '';
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-color: #00d4ff;
+  border-style: solid;
+}
+.hud-card::before { top: -1px;    left: -1px;  border-width: 1px 0 0 1px; }
+.hud-card::after  { bottom: -1px; right: -1px; border-width: 0 1px 1px 0; }
+
+/* HUD label */
+.hud-label {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 9px;
+  letter-spacing: 0.15em;
+  color: #00d4ff;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+/* Text glow */
+.text-glow {
+  text-shadow: 0 0 10px rgba(0,212,255,0.55), 0 0 20px rgba(0,212,255,0.25);
+}
+
+/* Waveform bars */
+.wave-bar {
+  width: 3px;
+  background: #00d4ff;
+  border-radius: 1px;
+  transform-origin: bottom;
+  animation: bar 1.4s ease-in-out infinite;
+}
+.wave-bar:nth-child(odd)  { animation-delay: 0.0s;  }
+.wave-bar:nth-child(even) { animation-delay: 0.2s;  }
+.wave-bar:nth-child(3n)   { animation-delay: 0.1s;  }
+.wave-bar:nth-child(4n)   { animation-delay: 0.3s;  }
+.wave-bar:nth-child(5n)   { animation-delay: 0.15s; }
+.wave-bar:nth-child(7n)   { animation-delay: 0.07s; }
