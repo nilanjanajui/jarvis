@@ -3,7 +3,7 @@ from flask_cors import CORS
 import subprocess, platform
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, origins=["http://localhost:3000", "https://jarvis-theta-indol.vercel.app/"])
 OS  = platform.system()
 
 APPS = {
