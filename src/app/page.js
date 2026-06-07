@@ -222,7 +222,13 @@ export default function JarvisPage() {
         h < 17 ? 'Good afternoon' :
           h < 21 ? 'Good evening' : 'Good night';
 
-    const intro = `${timeGreet}, sir. Jarvis. online. All systems operational. Neural sync active, satellite link established, security protocols engaged. How may I assist you today?`;
+    const intro = `${timeGreet}, sir.
+
+JARVIS online and standing by. All systems are operational. Neural synchronization is active, communications are secure, and security protocols are fully engaged.
+
+I'm ready to assist with research, analysis, planning, creative projects, technical challenges, or any task you have in mind.
+
+How may I be of service today?`;
 
     setStatus('listening');
     setLogLine('Wake sequence initiated — all systems online');
