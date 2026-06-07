@@ -187,21 +187,32 @@ Answer time questions directly from the above. No tools needed for time or date.
 
 USER LOCATION:
 ${userCoords
-            ? `Coordinates: ${userCoords}. For weather "here" or "my location", use get_weather with "${userCoords}". For "where am I", use get_location.`
-            : 'Location not available — browser permission was not granted.'}
+                ? `Coordinates: ${userCoords}. For weather "here" or "my location", use get_weather with "${userCoords}". For "where am I", use get_location.`
+                : 'Location not available — browser permission was not granted.'}
 
 TOOL NARRATION STYLE:
 - Weather: Speak like a broadcast. "Right now in Chittagong, you're looking at 31 degrees — feels like 34 with the humidity. Partly cloudy, light winds from the southwest."
 - News: Narrate 3–4 headlines like a newsroom anchor. Segue smoothly between them. "Leading today... and in other news... finally..."
 - Web search: Summarise the key point naturally. Don't list sources robotically.`;
 
-        const first = await groq.chat.completions.create({
-            model: 'llama-3.3-70b-versatile',
-            messages: [{ role: 'system', content: SYSTEM }, ...messages],
-            tools,
-            tool_choice: 'auto',
-            max_tokens: 700,
-        });
+        let first;
+        try {
+            first = await groq.chat.completions.create({
+                model: 'llama-3.3-70b-versatile',
+                messages: [{ role: 'system', content: SYSTEM }, ...messages],
+                tools,
+                tool_choice: 'auto',
+                max_tokens: 400,
+            });
+        } catch (toolErr) {
+            // Groq 400: model generated malformed tool arguments — retry without tools
+            const fallback = await groq.chat.completions.create({
+                model: 'llama-3.3-70b-versatile',
+                messages: [{ role: 'system', content: SYSTEM }, ...messages],
+                max_tokens: 400,
+            });
+            return Response.json({ reply: fallback.choices[0].message.content, action: null });
+        }
 
         const assistantMsg = first.choices[0].message;
 
@@ -223,6 +234,12 @@ TOOL NARRATION STYLE:
 
     } catch (err) {
         console.error('[/api/chat] Error:', err);
+        if (err?.status === 429) {
+            return Response.json({
+                reply: "I've hit the rate limit, sir. Give me a moment before your next request.",
+                action: null,
+            });
+        }
         return Response.json(
             { error: err.message || 'Internal server error' },
             { status: 500 }
