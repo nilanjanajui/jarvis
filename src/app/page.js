@@ -64,8 +64,11 @@ export default function JarvisPage() {
     );
   }, []);
 
-  // ── Agent connection check ──────────────────────────────────────────────────
+  // ── Agent connection check (local only — agent.py runs on your PC, not Vercel) ─
   useEffect(() => {
+    const isLocal = typeof window !== 'undefined' && window.location.hostname === 'localhost';
+    if (!isLocal) return; // already false by default, nothing to set
+
     const check = () =>
       fetch(`${AGENT}/health`).then(() => setAgentConnected(true)).catch(() => setAgentConnected(false));
     check();
@@ -185,11 +188,15 @@ export default function JarvisPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           messages: history,
-          userLocation: userLocationRef.current,             // real coordinates
-          localTime: new Date().toLocaleTimeString(),      // user's local time
+          userLocation: userLocationRef.current,
+          localTime: new Date().toLocaleTimeString(),
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         }),
       });
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        throw new Error(`Chat API ${res.status}${errText ? ': ' + errText.slice(0, 120) : ''}`);
+      }
       const { reply, action } = await res.json();
       setMessages([...history, { role: 'assistant', content: reply }]);
       setLogLine('Relaying response...');

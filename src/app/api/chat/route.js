@@ -73,7 +73,7 @@ const tools = [
         type: 'function',
         function: {
             name: 'get_weather',
-            description: 'Get real-time weather. Use when user asks about weather, temperature, rain, humidity, wind, or forecast. If user says "here", "current location", or "my location", use the coordinates provided in the system prompt.',
+            description: 'Get real-time weather. Use when user asks about weather, temperature, rain, humidity, wind, or forecast. If user says "here", "current location", or "my location", use the coordinates in the system prompt.',
             parameters: { type: 'object', properties: { location: { type: 'string', description: 'City name or "lat,lon" coordinates' } }, required: ['location'] },
         },
     },
@@ -81,7 +81,7 @@ const tools = [
         type: 'function',
         function: {
             name: 'get_location',
-            description: 'Get the user\'s current location as a readable place name. Use when user asks where they are or what their location is.',
+            description: 'Get the user\'s current location as a readable place name.',
             parameters: { type: 'object', properties: {}, required: [] },
         },
     },
@@ -89,7 +89,7 @@ const tools = [
         type: 'function',
         function: {
             name: 'search_news',
-            description: 'Search latest news headlines. Use when user asks about news, current events, or "what is happening".',
+            description: 'Search latest news headlines. Use when user asks about news, current events, or "what\'s happening".',
             parameters: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] },
         },
     },
@@ -100,10 +100,7 @@ const tools = [
             description: 'Open a website in the browser.',
             parameters: {
                 type: 'object',
-                properties: {
-                    url: { type: 'string' },
-                    site_name: { type: 'string' },
-                },
+                properties: { url: { type: 'string' }, site_name: { type: 'string' } },
                 required: ['url', 'site_name'],
             },
         },
@@ -133,7 +130,7 @@ async function handleToolCall(toolCall, userCoords) {
     const getContent = async () => {
         if (name === 'search_web') return await searchWeb(args.query);
         if (name === 'get_weather') return await getWeather(args.location);
-        if (name === 'get_location') return userCoords ? await getLocation(userCoords) : 'Location not available — browser permission was not granted.';
+        if (name === 'get_location') return userCoords ? await getLocation(userCoords) : 'Location not available.';
         if (name === 'search_news') return await searchNews(args.query);
         if (name === 'open_url') return `Opening ${args.site_name} in browser`;
         if (name === 'open_app') return `Opening ${args.app_name}`;
@@ -155,63 +152,80 @@ async function handleToolCall(toolCall, userCoords) {
 }
 
 export async function POST(req) {
-    const { messages, userLocation, localTime, timezone } = await req.json();
+    try {
+        const { messages, userLocation, localTime, timezone } = await req.json();
 
-    const userCoords = userLocation ? `${userLocation.lat},${userLocation.lon}` : null;
+        const userCoords = userLocation ? `${userLocation.lat},${userLocation.lon}` : null;
 
-    const now = new Date();
-    const SYSTEM = `You are JARVIS — J.A.R.V.I.S. — a highly intelligent, concise, and slightly witty AI assistant inspired by Iron Man. You address the user as "sir".
-Keep responses natural and conversational, like you are speaking aloud. 1–3 sentences unless more detail is requested.
-Never say "As an AI". Speak confidently.
+        const now = new Date();
+        const SYSTEM = `You are Jarvis. Just A Rather Very Intelligent System - Tony Stark's AI from Iron Man. You speak to the user as "sir".
+
+VOICE & PERSONALITY:
+Speak naturally, like a brilliant and trusted colleague — warm, confident, occasionally dry-witted. Never stiff or robotic. Use contractions freely: I've, you're, it's, I'd, we've, that's.
+
+Never say: "As an AI", "Certainly!", "Of course!", "I'd be happy to", "Great question!", "Absolutely!"
+Never open with a compliment. Get straight to it.
+
+Vary your openings naturally — examples: "Right, so...", "Already on it.", "As it turns out...", "Here's what I've got:", "Pulling that up.", "Interesting — ", "Good news, sir.", "So, about that..."
+Never repeat the same opener twice in a row.
+
+RESPONSE LENGTH:
+Match the complexity of the question. A simple query gets one or two sentences. A detailed question gets a proper paragraph. Never pad with filler.
+
+STYLE:
+- Short punchy sentences. Longer ones when the thought needs room.
+- Natural connectors: "and", "but", "though", "so", "also" — not "Additionally" or "Furthermore".
+- Dry wit when it fits: "That's... one approach, sir." or "I suspected you'd ask that."
+- Be direct. Skip preamble. Just answer.
 
 CURRENT DATE AND TIME:
 - Local time: ${localTime || now.toLocaleTimeString()}
 - Local date: ${now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
 - Timezone: ${timezone || 'UTC'}
 
-When someone asks what time it is, answer directly from the local time above. Do not use any tool for time questions.
+Answer time questions directly from the above. No tools needed for time or date.
 
 USER LOCATION:
 ${userCoords
-            ? `- Coordinates: ${userCoords}
-- When user asks for weather "here", "current location", or "my location", call get_weather with "${userCoords}"
-- When user asks where they are, call get_location`
-            : '- Location not available (browser permission not granted)'}
+            ? `Coordinates: ${userCoords}. For weather "here" or "my location", use get_weather with "${userCoords}". For "where am I", use get_location.`
+            : 'Location not available — browser permission was not granted.'}
 
-CAPABILITIES:
-- Search web for real-time info
-- Get real-time weather for any city or coordinates
-- Get user current location
-- Search and read latest news — narrate headlines naturally
-- Open websites and desktop apps
-- Control system volume
+TOOL NARRATION STYLE:
+- Weather: Speak like a broadcast. "Right now in Chittagong, you're looking at 31 degrees — feels like 34 with the humidity. Partly cloudy, light winds from the southwest."
+- News: Narrate 3–4 headlines like a newsroom anchor. Segue smoothly between them. "Leading today... and in other news... finally..."
+- Web search: Summarise the key point naturally. Don't list sources robotically.`;
 
-When reading news, narrate 3–4 headlines naturally as if reading a broadcast.
-When reporting weather, speak conversationally: "Currently in Chittagong, it is 31 degrees..."`;
+        const first = await groq.chat.completions.create({
+            model: 'llama-3.3-70b-versatile',
+            messages: [{ role: 'system', content: SYSTEM }, ...messages],
+            tools,
+            tool_choice: 'auto',
+            max_tokens: 700,
+        });
 
-    const first = await groq.chat.completions.create({
-        model: 'llama-3.3-70b-versatile',
-        messages: [{ role: 'system', content: SYSTEM }, ...messages],
-        tools,
-        tool_choice: 'auto',
-        max_tokens: 700,
-    });
+        const assistantMsg = first.choices[0].message;
 
-    const assistantMsg = first.choices[0].message;
+        if (!assistantMsg.tool_calls) {
+            return Response.json({ reply: assistantMsg.content, action: null });
+        }
 
-    if (!assistantMsg.tool_calls) {
-        return Response.json({ reply: assistantMsg.content, action: null });
+        const handled = await Promise.all(assistantMsg.tool_calls.map(tc => handleToolCall(tc, userCoords)));
+        const toolResults = handled.map(h => h.toolResult);
+        const action = handled.find(h => h.action)?.action ?? null;
+
+        const final = await groq.chat.completions.create({
+            model: 'llama-3.3-70b-versatile',
+            messages: [{ role: 'system', content: SYSTEM }, ...messages, assistantMsg, ...toolResults],
+            max_tokens: 700,
+        });
+
+        return Response.json({ reply: final.choices[0].message.content, action });
+
+    } catch (err) {
+        console.error('[/api/chat] Error:', err);
+        return Response.json(
+            { error: err.message || 'Internal server error' },
+            { status: 500 }
+        );
     }
-
-    const handled = await Promise.all(assistantMsg.tool_calls.map(tc => handleToolCall(tc, userCoords)));
-    const toolResults = handled.map(h => h.toolResult);
-    const action = handled.find(h => h.action)?.action ?? null;
-
-    const final = await groq.chat.completions.create({
-        model: 'llama-3.3-70b-versatile',
-        messages: [{ role: 'system', content: SYSTEM }, ...messages, assistantMsg, ...toolResults],
-        max_tokens: 700,
-    });
-
-    return Response.json({ reply: final.choices[0].message.content, action });
 }

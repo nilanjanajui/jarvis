@@ -5,7 +5,7 @@ export async function POST(req) {
         return Response.json({ error: 'No ElevenLabs key' }, { status: 400 });
     }
 
-    // "Adam" voice — deep, clear, closest to JARVIS
+    // "Adam" voice — deep and clear, closest to JARVIS
     const VOICE_ID = 'pNInz6obpgDQGcFmaJgB';
 
     const res = await fetch(
@@ -19,12 +19,19 @@ export async function POST(req) {
             body: JSON.stringify({
                 text,
                 model_id: 'eleven_multilingual_v2',
-                voice_settings: { stability: 0.5, similarity_boost: 0.75, style: 0.2, use_speaker_boost: true },
+                voice_settings: {
+                    stability: 0.35,          // lower = more expressive, natural variation
+                    similarity_boost: 0.82,   // truer to the voice character
+                    style: 0.40,              // more expressive delivery
+                    use_speaker_boost: true,
+                },
             }),
         }
     );
 
     if (!res.ok) {
+        const body = await res.text().catch(() => '');
+        console.error('[/api/speak] ElevenLabs error:', res.status, body);
         return Response.json({ error: 'TTS failed' }, { status: 500 });
     }
 
