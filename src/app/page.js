@@ -32,8 +32,8 @@ export default function JarvisPage() {
   const [elevenLabsOk, setElevenLabsOk] = useState(true);
   const [agentConnected, setAgentConnected] = useState(false);
   const [alwaysOn, setAlwaysOn] = useState(false);
+  const [userLocation, setUserLocation] = useState(null);
 
-  // Refs that recognition handlers read — avoids stale closures
   const recognitionRef = useRef(null);
   const recognitionRunning = useRef(false);
   const audioRef = useRef(null);
@@ -44,11 +44,25 @@ export default function JarvisPage() {
   const elevenLabsOkRef = useRef(true);
   const handleSendRef = useRef(null);
   const wakeUpRef = useRef(null);
+  const userLocationRef = useRef(null);
 
-  // Keep refs in sync with state
   useEffect(() => { messagesRef.current = messages; }, [messages]);
   useEffect(() => { statusRef.current = status; }, [status]);
   useEffect(() => { elevenLabsOkRef.current = elevenLabsOk; }, [elevenLabsOk]);
+  useEffect(() => { userLocationRef.current = userLocation; }, [userLocation]);
+
+  // ── Get browser location on mount ──────────────────────────────────────────
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setUserLocation({ lat: pos.coords.latitude, lon: pos.coords.longitude });
+        setLogLine('Location acquired');
+      },
+      () => setLogLine('Location unavailable — permission denied'),
+      { timeout: 8000 }
+    );
+  }, []);
 
   // ── Agent connection check ──────────────────────────────────────────────────
   useEffect(() => {
@@ -59,28 +73,17 @@ export default function JarvisPage() {
     return () => clearInterval(t);
   }, []);
 
-  // ── Safe recognition start/stop ────────────────────────────────────────────
-  const safeStart = () => {
+  // ── Safe recognition helpers ────────────────────────────────────────────────
+  const safeStart = useCallback(() => {
     if (recognitionRunning.current) return;
-    try {
-      recognitionRef.current?.start();
-    } catch (e) {
-      if (e.name !== 'InvalidStateError') console.error('Recognition start:', e);
+    try { recognitionRef.current?.start(); } catch (e) {
+      if (e.name !== 'InvalidStateError') console.error(e);
     }
-  };
+  }, []);
 
-  const safeStop = () => {
+  const safeStop = useCallback(() => {
     try { recognitionRef.current?.stop(); } catch { }
-  };
-
-  // ── Resume listening after JARVIS finishes speaking ────────────────────────
-  const resumeListening = () => {
-    setStatus('idle');
-    if (alwaysOnRef.current) {
-      listeningRef.current = true;
-      setTimeout(safeStart, 500);
-    }
-  };
+  }, []);
 
   // ── 1. speak ───────────────────────────────────────────────────────────────
   const speak = useCallback(async (text) => {
@@ -117,39 +120,35 @@ export default function JarvisPage() {
       }
     }
 
-    // Browser TTS fallback — pick a male voice
+    // Browser TTS fallback — male voice
     const doSpeak = () => {
       const voices = window.speechSynthesis.getVoices();
       const maleVoice = voices.find(v =>
         v.name === 'Google UK English Male' ||
         v.name.includes('Male') ||
         v.name.toLowerCase().includes('david') ||
-        v.name.toLowerCase().includes('daniel') ||
-        v.name.toLowerCase().includes('james')
+        v.name.toLowerCase().includes('daniel')
       );
       const u = new SpeechSynthesisUtterance(text);
       if (maleVoice) u.voice = maleVoice;
       u.rate = 0.92;
       u.pitch = 0.65;
-      u.volume = 1;
       u.onend = resumeListening;
       u.onerror = resumeListening;
       speechSynthesis.speak(u);
     };
 
-    if (speechSynthesis.getVoices().length > 0) {
-      doSpeak();
-    } else {
-      speechSynthesis.onvoiceschanged = doSpeak;
-    }
-  }, []); // empty deps — only uses refs // empty deps — uses refs only
+    speechSynthesis.getVoices().length > 0
+      ? doSpeak()
+      : (speechSynthesis.onvoiceschanged = doSpeak);
+  }, [safeStart, safeStop]);
 
   // ── 2. executeAction ───────────────────────────────────────────────────────
   const executeAction = useCallback(async (action) => {
     if (!action) return;
     if (action.type === 'open_url') {
       window.open(action.url, '_blank');
-      setLogLine(`Opening ${action.site_name} in browser`);
+      setLogLine(`Opening ${action.site_name}`);
       return;
     }
     if (action.type === 'open_app' && agentConnected) {
@@ -169,7 +168,7 @@ export default function JarvisPage() {
     }
   }, [agentConnected]);
 
-  // ── 3. handleSend ──────────────────────────────────────────────────────────
+  // ── 3. handleSend — passes location + local time ──────────────────────────
   const handleSend = useCallback(async (text) => {
     if (!text?.trim()) return;
     if (statusRef.current === 'thinking' || statusRef.current === 'speaking') return;
@@ -184,11 +183,16 @@ export default function JarvisPage() {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: history }),
+        body: JSON.stringify({
+          messages: history,
+          userLocation: userLocationRef.current,             // real coordinates
+          localTime: new Date().toLocaleTimeString(),      // user's local time
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        }),
       });
       const { reply, action } = await res.json();
       setMessages([...history, { role: 'assistant', content: reply }]);
-      setLogLine('Response ready — relaying...');
+      setLogLine('Relaying response...');
       await Promise.all([executeAction(action), speak(reply)]);
     } catch (e) {
       console.error('handleSend error:', e);
@@ -199,12 +203,11 @@ export default function JarvisPage() {
         setTimeout(safeStart, 500);
       }
     }
-  }, [executeAction, speak]);
+  }, [executeAction, speak, safeStart]);
 
-  // Keep refs in sync
   useEffect(() => { handleSendRef.current = handleSend; }, [handleSend]);
 
-  // ── 4. wakeUp — greeting + intro speech ───────────────────────────────────
+  // ── 4. Wake up sequence ────────────────────────────────────────────────────
   const wakeUp = useCallback(() => {
     const h = new Date().getHours();
     const timeGreet =
@@ -212,23 +215,19 @@ export default function JarvisPage() {
         h < 17 ? 'Good afternoon' :
           h < 21 ? 'Good evening' : 'Good night';
 
-    const intro = `${timeGreet}, Sir, Jarvis is now online. All systems are fully operational. Neural sync active, satellite link established, security protocols engaged. I am at your service. How may I assist you today?`;
+    const intro = `${timeGreet}, sir. J.A.R.V.I.S. online. All systems operational. Neural sync active, satellite link established, security protocols engaged. You may speak freely — I am listening.`;
 
-    setStatus('listening'); // green HUD
+    setStatus('listening');
     setLogLine('Wake sequence initiated — all systems online');
-
     setTimeout(() => speak(intro), 300);
   }, [speak]);
 
   useEffect(() => { wakeUpRef.current = wakeUp; }, [wakeUp]);
 
-  // ── 5. Speech recognition — created ONCE ──────────────────────────────────
+  // ── 5. Speech recognition — created ONCE with empty deps ──────────────────
   useEffect(() => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) {
-      console.warn('Web Speech API not supported. Use Chrome.');
-      return;
-    }
+    if (!SR) { console.warn('Use Chrome for voice support.'); return; }
 
     const r = new SR();
     r.continuous = true;
@@ -241,55 +240,43 @@ export default function JarvisPage() {
       const cur = e.results[e.results.length - 1];
       const raw = cur[0].transcript;
 
-      // Show interim transcript
-      if (!cur.isFinal) {
-        setTranscript(raw);
-        return;
-      }
+      if (!cur.isFinal) { setTranscript(raw); return; }
 
       setTranscript('');
       const text = raw.toLowerCase().trim();
 
-      // Don't process while JARVIS is busy
       if (statusRef.current === 'thinking' || statusRef.current === 'speaking') return;
 
       if (alwaysOnRef.current) {
-        // ── Wake up command ──
-        const isWakeUp =
-          (text.includes('wake up') && text.includes('jarvis')) ||
-          text === 'wake up jarvis' ||
-          text === 'hey jarvis wake up';
 
-        if (isWakeUp) {
+        // ── Sleep command ──
+        if (
+          (text.includes('sleep') && text.includes('jarvis')) ||
+          (text.includes('goodbye') && text.includes('jarvis')) ||
+          text === 'jarvis sleep'
+        ) {
+          listeningRef.current = false;
+          alwaysOnRef.current = false;
+          setAlwaysOn(false);
+          setLogLine('Going to sleep...');
+          recognitionRef.current?.stop();
+          speak("Going to sleep, sir. Call me when you need me.");
+          return;
+        }
+
+        // ── Wake up command ──
+        if (text.includes('wake up') && text.includes('jarvis')) {
           wakeUpRef.current?.();
           return;
         }
 
-        // ── Regular command with wake word ──
-        const hasWakeWord =
-          text.includes('hey jarvis') ||
-          text.includes('ok jarvis') ||
-          text.startsWith('jarvis');
-
-        if (hasWakeWord) {
-          const command = raw
-            .replace(/hey jarvis[,.]?/gi, '')
-            .replace(/ok jarvis[,.]?/gi, '')
-            .replace(/^jarvis[,.]?/gi, '')
-            .trim();
-
-          if (command.length > 1) {
-            setLogLine(`Command: "${command}"`);
-            handleSendRef.current?.(command);
-          } else {
-            // Said "jarvis" alone — greet
-            setLogLine('Awaiting command...');
-            setStatus('listening');
-          }
+        // ── Everything else is a direct command — no wake word needed ──
+        if (raw.trim().length > 2) {
+          handleSendRef.current?.(raw.trim());
         }
 
       } else {
-        // Click-to-talk mode — process whatever was said
+        // Click-to-talk mode
         if (statusRef.current === 'listening') {
           handleSendRef.current?.(raw);
         }
@@ -299,51 +286,39 @@ export default function JarvisPage() {
     r.onend = () => {
       recognitionRunning.current = false;
       setStatus(s => s === 'listening' ? 'idle' : s);
-      // Auto-restart if always-on is active
       if (listeningRef.current) {
         setTimeout(() => {
-          if (!recognitionRunning.current) {
-            try { r.start(); } catch { }
-          }
+          if (!recognitionRunning.current) try { r.start(); } catch { }
         }, 400);
       }
     };
 
     r.onerror = (e) => {
       recognitionRunning.current = false;
-      // 'no-speech' and 'aborted' are expected — don't log
-      if (e.error !== 'no-speech' && e.error !== 'aborted') {
-        console.error('Speech recognition error:', e.error);
-      }
-      // Restart on network errors
-      if (listeningRef.current && (e.error === 'network' || e.error === 'service-not-allowed')) {
+      if (e.error !== 'no-speech' && e.error !== 'aborted') console.error('Speech error:', e.error);
+      if (listeningRef.current) {
         setTimeout(() => {
-          if (!recognitionRunning.current) {
-            try { r.start(); } catch { }
-          }
-        }, 1000);
+          if (!recognitionRunning.current) try { r.start(); } catch { }
+        }, 600);
       }
     };
 
     recognitionRef.current = r;
-
-    return () => {
-      listeningRef.current = false;
-      recognitionRunning.current = false;
-      try { r.abort(); } catch { }
-    };
-  }, []); // ← EMPTY DEPS — created once, never recreated
+    return () => { listeningRef.current = false; try { r.abort(); } catch { } };
+  }, [speak]); // ← empty deps — created once
 
   // ── Toggle always-on ────────────────────────────────────────────────────────
   const toggleAlwaysOn = () => {
     const next = !alwaysOn;
     setAlwaysOn(next);
-    alwaysOnRef.current = next; // sync ref immediately
+    alwaysOnRef.current = next;
 
     if (next) {
       listeningRef.current = true;
-      setLogLine('Always-on activated — say "hey jarvis" or "wake up jarvis"');
-      setTimeout(safeStart, 200);
+      setLogLine('Always-on activated — say "wake up jarvis" or speak directly');
+      setTimeout(() => {
+        if (!recognitionRunning.current) try { recognitionRef.current?.start(); } catch { }
+      }, 200);
     } else {
       listeningRef.current = false;
       safeStop();
@@ -351,7 +326,6 @@ export default function JarvisPage() {
     }
   };
 
-  // ── Click-to-talk ───────────────────────────────────────────────────────────
   const handleMicClick = () => {
     if (alwaysOn || status !== 'idle') return;
     setStatus('listening');
@@ -368,104 +342,53 @@ export default function JarvisPage() {
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#060b14', overflow: 'hidden', position: 'relative' }}>
 
-      {/* ── Animated Background ── */}
+      {/* Animated Background */}
       <div style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none', overflow: 'hidden' }}>
-
-        {/* Dot grid */}
-        <div style={{
-          position: 'absolute', inset: 0,
-          backgroundImage: 'radial-gradient(circle, rgba(0,212,255,0.18) 1px, transparent 1px)',
-          backgroundSize: '38px 38px',
-        }} />
-
-        {/* Scan line 1 */}
-        <div style={{
-          position: 'absolute', left: 0, right: 0, height: '1px',
-          background: 'linear-gradient(90deg, transparent, rgba(0,212,255,0.35), transparent)',
-          animation: 'scan-bg 5s linear infinite',
-        }} />
-
-        {/* Scan line 2 */}
-        <div style={{
-          position: 'absolute', left: 0, right: 0, height: '1px',
-          background: 'linear-gradient(90deg, transparent, rgba(0,212,255,0.2), transparent)',
-          animation: 'scan-bg 9s linear infinite',
-          animationDelay: '-4s',
-        }} />
-
-        {/* Central radial glow — follows status color */}
-        <div style={{
-          position: 'absolute', top: '50%', left: '50%',
-          transform: 'translate(-50%, -50%)',
-          width: '900px', height: '900px', borderRadius: '50%',
-          background: `radial-gradient(circle, ${statusColor}07 0%, transparent 65%)`,
-          animation: 'pulse-glow 3s ease-in-out infinite',
-          transition: 'background 1s',
-        }} />
-
-        {/* Floating particles */}
+        <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(circle, rgba(0,212,255,0.18) 1px, transparent 1px)', backgroundSize: '38px 38px' }} />
+        <div style={{ position: 'absolute', left: 0, right: 0, height: '1px', background: 'linear-gradient(90deg, transparent, rgba(0,212,255,0.35), transparent)', animation: 'scan-bg 5s linear infinite' }} />
+        <div style={{ position: 'absolute', left: 0, right: 0, height: '1px', background: 'linear-gradient(90deg, transparent, rgba(0,212,255,0.2), transparent)', animation: 'scan-bg 9s linear infinite', animationDelay: '-4s' }} />
+        <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '900px', height: '900px', borderRadius: '50%', background: `radial-gradient(circle, ${statusColor}07 0%, transparent 65%)`, animation: 'pulse-glow 3s ease-in-out infinite', transition: 'background 1s' }} />
         {PARTICLES.map((p, i) => (
-          <div key={i} style={{
-            position: 'absolute',
-            left: `${p.x}%`,
-            top: `${p.y}%`,
-            width: `${p.size}px`,
-            height: `${p.size}px`,
-            borderRadius: '50%',
-            background: '#00d4ff',
-            animation: `float-particle ${p.duration}s ease-in-out ${p.delay}s infinite, drift-x ${p.driftDur}s ease-in-out ${p.delay}s infinite`,
-          }} />
+          <div key={i} style={{ position: 'absolute', left: `${p.x}%`, top: `${p.y}%`, width: `${p.size}px`, height: `${p.size}px`, borderRadius: '50%', background: '#00d4ff', animation: `float-particle ${p.duration}s ease-in-out ${p.delay}s infinite, drift-x ${p.driftDur}s ease-in-out ${p.delay}s infinite` }} />
         ))}
       </div>
 
-      {/* ── App layer ── */}
+      {/* App layer */}
       <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', height: '100vh' }}>
         <Navbar />
 
         {/* Status bar */}
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '14px', padding: '4px 0', borderBottom: '1px solid rgba(0,212,255,0.06)', background: 'rgba(0,5,12,0.88)', flexWrap: 'wrap' }}>
-
           <span style={{ fontFamily: 'Share Tech Mono', fontSize: '9px', color: agentConnected ? '#22c55e' : 'rgba(0,212,255,0.3)', letterSpacing: '0.1em' }}>
             {agentConnected ? '● AGENT ONLINE' : '○ AGENT OFFLINE'}
           </span>
-
-          <span style={{ color: 'rgba(0,212,255,0.2)', fontSize: '9px' }}>|</span>
-
+          <span style={{ color: 'rgba(0,212,255,0.2)' }}>|</span>
+          <span style={{ fontFamily: 'Share Tech Mono', fontSize: '9px', color: userLocation ? '#22c55e' : 'rgba(0,212,255,0.3)', letterSpacing: '0.1em' }}>
+            {userLocation ? '● LOCATION LOCKED' : '○ LOCATION UNKNOWN'}
+          </span>
+          <span style={{ color: 'rgba(0,212,255,0.2)' }}>|</span>
           <span style={{ fontFamily: 'Share Tech Mono', fontSize: '9px', color: elevenLabsOk ? '#00d4ff' : '#f59e0b', letterSpacing: '0.1em' }}>
             {elevenLabsOk ? '● ELEVENLABS VOICE' : '⚠ BROWSER VOICE'}
           </span>
-
-          <span style={{ color: 'rgba(0,212,255,0.2)', fontSize: '9px' }}>|</span>
-
-          {/* Always-on toggle button */}
+          <span style={{ color: 'rgba(0,212,255,0.2)' }}>|</span>
           <button
             onClick={toggleAlwaysOn}
-            style={{
-              fontFamily: 'Share Tech Mono', fontSize: '9px', letterSpacing: '0.1em',
-              background: 'none',
-              border: `1px solid ${alwaysOn ? '#22c55e' : 'rgba(0,212,255,0.25)'}`,
-              color: alwaysOn ? '#22c55e' : 'rgba(0,212,255,0.5)',
-              padding: '2px 10px', cursor: 'pointer', borderRadius: '2px',
-              transition: 'all 0.3s',
-            }}
+            style={{ fontFamily: 'Share Tech Mono', fontSize: '9px', letterSpacing: '0.1em', background: 'none', border: `1px solid ${alwaysOn ? '#22c55e' : 'rgba(0,212,255,0.25)'}`, color: alwaysOn ? '#22c55e' : 'rgba(0,212,255,0.5)', padding: '2px 10px', cursor: 'pointer', borderRadius: '2px', transition: 'all 0.3s' }}
           >
             {alwaysOn ? '● ALWAYS LISTENING' : '○ CLICK TO TALK'}
           </button>
-
           {alwaysOn && (
             <>
-              <span style={{ color: 'rgba(0,212,255,0.2)', fontSize: '9px' }}>|</span>
+              <span style={{ color: 'rgba(0,212,255,0.2)' }}>|</span>
               <span style={{ fontFamily: 'Share Tech Mono', fontSize: '9px', color: 'rgba(0,212,255,0.4)', letterSpacing: '0.08em' }}>
-                &quot;wake up jarvis&quot; · &quot;hey jarvis, [command]&quot;
+                &quot;wake up jarvis&quot; to greet · &quot;jarvis sleep&quot; to pause
               </span>
             </>
           )}
         </div>
 
-        {/* Three-column layout */}
+        {/* Layout */}
         <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '272px 1fr 272px', overflow: 'hidden', minHeight: 0 }}>
-
-          {/* Left */}
           <div style={{ padding: '10px', overflowY: 'auto', borderRight: '1px solid rgba(0,212,255,0.07)' }}>
             <NeuralSync />
             <BioMetrics />
@@ -473,11 +396,7 @@ export default function JarvisPage() {
             <SystemLog extraLine={logLine} />
           </div>
 
-          {/* Center */}
-          <div
-            onClick={handleMicClick}
-            style={{ cursor: alwaysOn || status !== 'idle' ? 'default' : 'pointer', position: 'relative' }}
-          >
+          <div onClick={handleMicClick} style={{ cursor: alwaysOn || status !== 'idle' ? 'default' : 'pointer', position: 'relative' }}>
             <CenterHUD status={status} transcript={transcript} />
             {!alwaysOn && status === 'idle' && (
               <div style={{ position: 'absolute', bottom: '6%', left: '50%', transform: 'translateX(-50%)', fontFamily: 'Orbitron', fontSize: '7px', letterSpacing: '0.2em', color: 'rgba(0,212,255,0.25)' }}>
@@ -486,7 +405,6 @@ export default function JarvisPage() {
             )}
           </div>
 
-          {/* Right */}
           <div style={{ padding: '10px', overflowY: 'auto', borderLeft: '1px solid rgba(0,212,255,0.07)' }}>
             <SystemTopology />
             <SatelliteLink />
