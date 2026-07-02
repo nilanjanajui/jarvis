@@ -181,8 +181,16 @@ export default function JarvisPage() {
   const executeAction = useCallback(async (action) => {
     if (!action) return;
     if (action.type === 'open_url') {
-      window.open(action.url, '_blank');
-      setLogLine(`Opening ${action.site_name}`);
+      const win = window.open(action.url, '_blank');
+      if (!win || win.closed || typeof win.closed === 'undefined') {
+        // Popup blocked (common when this fires from a voice/async callback
+        // rather than a direct click) — fall back to a one-tap confirmation
+        // banner, since a real click is a user gesture the browser allows.
+        setPendingUrl({ url: action.url, name: action.site_name || action.url });
+        setLogLine(`Popup blocked — confirm to open ${action.site_name}`);
+      } else {
+        setLogLine(`Opening ${action.site_name}`);
+      }
       return;
     }
     if (action.type === 'app_launch' && agentConnected) {
