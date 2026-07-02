@@ -151,14 +151,9 @@ async function handleToolCall(toolCall, userCoords) {
     };
 }
 
-export async function POST(req) {
-    try {
-        const { messages, userLocation, localTime, timezone } = await req.json();
-
-        const userCoords = userLocation ? `${userLocation.lat},${userLocation.lon}` : null;
-
-        const now = new Date();
-        const SYSTEM = `You are Jarvis. Just A Rather Very Intelligent System - Tony Stark's AI from Iron Man. You speak to the user as "sir".
+function buildSystemPrompt(localTime, timezone, userCoords) {
+    const now = new Date();
+    return `You are Jarvis. Just A Rather Very Intelligent System - Tony Stark's AI from Iron Man. You speak to the user as "sir".
 
 VOICE & PERSONALITY:
 Speak naturally, like a brilliant and trusted colleague — warm, confident, occasionally dry-witted. Never stiff or robotic. Use contractions freely: I've, you're, it's, I'd, we've, that's.
@@ -187,62 +182,116 @@ Answer time questions directly from the above. No tools needed for time or date.
 
 USER LOCATION:
 ${userCoords
-                ? `Coordinates: ${userCoords}. For weather "here" or "my location", use get_weather with "${userCoords}". For "where am I", use get_location.`
-                : 'Location not available — browser permission was not granted.'}
+            ? `Coordinates: ${userCoords}. For weather "here" or "my location", use get_weather with "${userCoords}". For "where am I", use get_location.`
+            : 'Location not available — browser permission was not granted.'}
 
 TOOL NARRATION STYLE:
 - Weather: Speak like a broadcast. "Right now in Chittagong, you're looking at 31 degrees — feels like 34 with the humidity. Partly cloudy, light winds from the southwest."
 - News: Narrate 3–4 headlines like a newsroom anchor. Segue smoothly between them. "Leading today... and in other news... finally..."
 - Web search: Summarise the key point naturally. Don't list sources robotically.`;
+}
 
-        let first;
-        try {
-            first = await groq.chat.completions.create({
-                model: 'llama-3.3-70b-versatile',
-                messages: [{ role: 'system', content: SYSTEM }, ...messages],
-                tools,
-                tool_choice: 'auto',
-                max_tokens: 400,
-            });
-        } catch (toolErr) {
-            // Groq 400: model generated malformed tool arguments — retry without tools
-            const fallback = await groq.chat.completions.create({
-                model: 'llama-3.3-70b-versatile',
-                messages: [{ role: 'system', content: SYSTEM }, ...messages],
-                max_tokens: 400,
-            });
-            return Response.json({ reply: fallback.choices[0].message.content, action: null });
-        }
+export async function POST(req) {
+    const { messages, userLocation, localTime, timezone } = await req.json();
+    const userCoords = userLocation ? `${userLocation.lat},${userLocation.lon}` : null;
+    const SYSTEM = buildSystemPrompt(localTime, timezone, userCoords);
 
-        const assistantMsg = first.choices[0].message;
+    const encoder = new TextEncoder();
 
-        if (!assistantMsg.tool_calls) {
-            return Response.json({ reply: assistantMsg.content, action: null });
-        }
+    const stream = new ReadableStream({
+        async start(controller) {
+            const send = (obj) => controller.enqueue(encoder.encode(JSON.stringify(obj) + '\n'));
 
-        const handled = await Promise.all(assistantMsg.tool_calls.map(tc => handleToolCall(tc, userCoords)));
-        const toolResults = handled.map(h => h.toolResult);
-        const action = handled.find(h => h.action)?.action ?? null;
+            try {
+                // ── First streamed call — decides on tools while streaming any direct text ──
+                const first = await groq.chat.completions.create({
+                    model: 'llama-3.3-70b-versatile',
+                    messages: [{ role: 'system', content: SYSTEM }, ...messages],
+                    tools,
+                    tool_choice: 'auto',
+                    stream: true,
+                    max_tokens: 700,
+                });
 
-        const final = await groq.chat.completions.create({
-            model: 'llama-3.3-70b-versatile',
-            messages: [{ role: 'system', content: SYSTEM }, ...messages, assistantMsg, ...toolResults],
-            max_tokens: 700,
-        });
+                let textAcc = '';
+                let toolCallsAcc = {};
+                let sawToolCall = false;
 
-        return Response.json({ reply: final.choices[0].message.content, action });
+                for await (const chunk of first) {
+                    const delta = chunk.choices?.[0]?.delta;
+                    if (!delta) continue;
 
-    } catch (err) {
-        console.error('[/api/chat] Error:', err);
-        if (err?.status === 429) {
-            return Response.json({
-                reply: "I've hit the rate limit, sir. Give me a moment before your next request.",
-                action: null,
-            });
-        }
-        return Response.json(
-            { error: err.message || 'Internal server error' },
-            { status: 500 }
-        );
-    }
+                    if (delta.content) {
+                        textAcc += delta.content;
+                        send({ type: 'delta', text: delta.content });
+                    }
+
+                    if (delta.tool_calls) {
+                        sawToolCall = true;
+                        for (const tc of delta.tool_calls) {
+                            const idx = tc.index ?? 0;
+                            if (!toolCallsAcc[idx]) toolCallsAcc[idx] = { id: '', name: '', arguments: '' };
+                            if (tc.id) toolCallsAcc[idx].id = tc.id;
+                            if (tc.function?.name) toolCallsAcc[idx].name += tc.function.name;
+                            if (tc.function?.arguments) toolCallsAcc[idx].arguments += tc.function.arguments;
+                        }
+                    }
+                }
+
+                // No tools needed — the text above was already streamed live, we're done
+                if (!sawToolCall) {
+                    send({ type: 'action', action: null });
+                    send({ type: 'done' });
+                    controller.close();
+                    return;
+                }
+
+                // ── Tools were called — execute them ──
+                const toolCallsArray = Object.values(toolCallsAcc).map((tc) => ({
+                    id: tc.id,
+                    type: 'function',
+                    function: { name: tc.name, arguments: tc.arguments },
+                }));
+
+                const assistantMsg = { role: 'assistant', content: textAcc || null, tool_calls: toolCallsArray };
+
+                const handled = await Promise.all(toolCallsArray.map((tc) => handleToolCall(tc, userCoords)));
+                const toolResults = handled.map((h) => h.toolResult);
+                const action = handled.find((h) => h.action)?.action ?? null;
+
+                send({ type: 'action', action });
+
+                // ── Second streamed call — final narrated reply using tool results ──
+                const final = await groq.chat.completions.create({
+                    model: 'llama-3.3-70b-versatile',
+                    messages: [{ role: 'system', content: SYSTEM }, ...messages, assistantMsg, ...toolResults],
+                    stream: true,
+                    max_tokens: 700,
+                });
+
+                for await (const chunk of final) {
+                    const delta = chunk.choices?.[0]?.delta;
+                    if (delta?.content) send({ type: 'delta', text: delta.content });
+                }
+
+                send({ type: 'done' });
+                controller.close();
+
+            } catch (err) {
+                console.error('[/api/chat] stream error:', err);
+                const message = err?.status === 429
+                    ? "I've hit the rate limit, sir. Give me a moment before your next request."
+                    : (err.message || 'Something went wrong processing that.');
+                send({ type: 'error', message });
+                controller.close();
+            }
+        },
+    });
+
+    return new Response(stream, {
+        headers: {
+            'Content-Type': 'text/plain; charset=utf-8',
+            'Cache-Control': 'no-cache',
+        },
+    });
 }

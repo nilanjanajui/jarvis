@@ -9,7 +9,7 @@ function getGreeting() {
     return 'GOOD NIGHT';
 }
 
-export default function CenterHUD({ status, transcript }) {
+export default function CenterHUD({ status, transcript, streamingText }) {
     const [greeting] = useState(getGreeting);
 
     const label = {
@@ -141,7 +141,7 @@ export default function CenterHUD({ status, transcript }) {
                     fontStyle: transcript ? 'normal' : 'italic',
                     transition: 'color 0.3s',
                 }}>
-                    {transcript || label}
+                    {transcript || streamingText || label}
                 </div>
             </div>
         </div>

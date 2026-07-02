@@ -27,6 +27,7 @@ const PARTICLES = Array.from({ length: 25 }, () => ({
 export default function JarvisPage() {
   const [status, setStatus] = useState('idle');
   const [transcript, setTranscript] = useState('');
+  const [streamingText, setStreamingText] = useState('');
   const [messages, setMessages] = useState(() => {
     if (typeof window === 'undefined') return [];
     try {
@@ -203,9 +204,13 @@ export default function JarvisPage() {
 
     setStatus('thinking');
     setTranscript('');
+    setStreamingText('');
     const history = [...messagesRef.current, { role: 'user', content: text.trim() }];
     setMessages(history);
     setLogLine(`Processing: "${text.trim().slice(0, 40)}..."`);
+
+    let fullText = '';
+    let receivedAction = null;
 
     try {
       const res = await fetch('/api/chat', {
@@ -218,17 +223,49 @@ export default function JarvisPage() {
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         }),
       });
-      if (!res.ok) {
+
+      if (!res.ok || !res.body) {
         const errText = await res.text().catch(() => '');
         throw new Error(`Chat API ${res.status}${errText ? ': ' + errText.slice(0, 120) : ''}`);
       }
-      const { reply, action } = await res.json();
-      setMessages([...history, { role: 'assistant', content: reply }]);
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop(); // keep incomplete trailing line for next chunk
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          let msg;
+          try { msg = JSON.parse(line); } catch { continue; }
+
+          if (msg.type === 'delta') {
+            fullText += msg.text;
+            setStreamingText(fullText);
+          } else if (msg.type === 'action') {
+            receivedAction = msg.action;
+          } else if (msg.type === 'error') {
+            throw new Error(msg.message);
+          }
+        }
+      }
+
+      setMessages([...history, { role: 'assistant', content: fullText }]);
+      setStreamingText('');
       setLogLine('Relaying response...');
-      await Promise.all([executeAction(action), speak(reply)]);
+      await Promise.all([executeAction(receivedAction), speak(fullText)]);
+
     } catch (e) {
       console.error('handleSend error:', e);
       setStatus('idle');
+      setStreamingText('');
       setLogLine('Error: request failed');
       if (alwaysOnRef.current) {
         listeningRef.current = true;
@@ -456,7 +493,7 @@ How may I be of service today?`;
           </div>
 
           <div onClick={handleMicClick} style={{ cursor: alwaysOn || status !== 'idle' ? 'default' : 'pointer', position: 'relative' }}>
-            <CenterHUD status={status} transcript={transcript} />
+            <CenterHUD status={status} transcript={transcript} streamingText={streamingText} />
             {!alwaysOn && status === 'idle' && (
               <div style={{ position: 'absolute', bottom: '6%', left: '50%', transform: 'translateX(-50%)', fontFamily: 'Orbitron', fontSize: '7px', letterSpacing: '0.2em', color: 'rgba(0,212,255,0.25)' }}>
                 CLICK TO ACTIVATE
