@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import Navbar from '@/components/Navbar';
+import SettingsPanel from '@/components/SettingsPanel';
 import NeuralSync from '@/components/NeuralSync';
 import BioMetrics from '@/components/BioMetrics';
 import AudioVisualizer from '@/components/AudioVisualizer';
@@ -43,6 +44,16 @@ export default function JarvisPage() {
   const [alwaysOn, setAlwaysOn] = useState(false);
   const [userLocation, setUserLocation] = useState(null);
   const [pendingUrl, setPendingUrl] = useState(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [settingsOpenSeq, setSettingsOpenSeq] = useState(0);
+  const [alwaysOnDefault, setAlwaysOnDefault] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    try {
+      return localStorage.getItem('jarvis-always-on-default') === 'true';
+    } catch {
+      return false;
+    }
+  });
 
   const recognitionRef = useRef(null);
   const recognitionRunning = useRef(false);
@@ -396,6 +407,32 @@ System initialization complete. All core modules are online and operating within
     }
   };
 
+  const toggleAlwaysOnDefault = () => {
+    setAlwaysOnDefault((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('jarvis-always-on-default', String(next));
+      } catch (e) {
+        console.error('Failed to save always-on-default:', e);
+      }
+      return next;
+    });
+  };
+
+  // ── Auto-activate always-on if enabled by default, once recognition is ready ──
+  useEffect(() => {
+    if (!alwaysOnDefault) return;
+    const t = setTimeout(() => {
+      setAlwaysOn(true);
+      alwaysOnRef.current = true;
+      listeningRef.current = true;
+      setLogLine('Always-on activated (default) — say "wake up jarvis" or speak directly');
+      if (!recognitionRunning.current) try { recognitionRef.current?.start(); } catch { }
+    }, 700);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const clearHistory = () => {
     setMessages([]);
     localStorage.removeItem('jarvis-history');
@@ -431,7 +468,7 @@ System initialization complete. All core modules are online and operating within
 
       {/* App layer */}
       <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', height: '100vh' }}>
-        <Navbar />
+        <Navbar onSettingsClick={() => { setSettingsOpenSeq((n) => n + 1); setShowSettings(true); }} settingsOpen={showSettings} />
 
         {/* Status bar */}
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '14px', padding: '4px 0', borderBottom: '1px solid rgba(0,212,255,0.06)', background: 'rgba(0,5,12,0.88)', flexWrap: 'wrap' }}>
@@ -524,6 +561,18 @@ System initialization complete. All core modules are online and operating within
         </div>
       )}
       <audio ref={audioRef} />
+
+      {showSettings && (
+        <SettingsPanel
+          key={settingsOpenSeq}
+          open={showSettings}
+          onClose={() => setShowSettings(false)}
+          alwaysOnDefault={alwaysOnDefault}
+          onToggleAlwaysOnDefault={toggleAlwaysOnDefault}
+          onClearHistory={clearHistory}
+          historyCount={messages.length}
+        />
+      )}
     </div>
   );
 }

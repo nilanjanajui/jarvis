@@ -1,6 +1,12 @@
 'use client';
 
-export default function Navbar() {
+export default function Navbar({ onSettingsClick, settingsOpen }) {
+    const items = ['HOME', 'DASHBOARD', 'SETTINGS', 'ABOUT'];
+
+    const handleClick = (item) => {
+        if (item === 'SETTINGS') onSettingsClick?.();
+    };
+
     return (
         <nav style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 24px', borderBottom: '1px solid rgba(0,212,255,0.15)', background: 'rgba(3,8,16,0.95)' }}>
             <span style={{ fontFamily: 'Orbitron', fontSize: '16px', fontWeight: '900', letterSpacing: '0.2em', color: '#00d4ff', textShadow: '0 0 10px #00d4ff66' }}>
@@ -8,11 +14,18 @@ export default function Navbar() {
             </span>
 
             <div style={{ display: 'flex', gap: '32px' }}>
-                {['HOME', 'DASHBOARD', 'SETTINGS', 'ABOUT'].map((item) => (
-                    <button key={item} style={{ fontFamily: 'Orbitron', fontSize: '9px', letterSpacing: '0.2em', color: item === 'DASHBOARD' ? '#00d4ff' : 'rgba(0,212,255,0.4)', background: 'none', border: 'none', borderBottom: item === 'DASHBOARD' ? '1px solid #00d4ff' : 'none', paddingBottom: '2px', cursor: 'pointer' }}>
-                        {item}
-                    </button>
-                ))}
+                {items.map((item) => {
+                    const isActive = item === 'DASHBOARD' || (item === 'SETTINGS' && settingsOpen);
+                    return (
+                        <button
+                            key={item}
+                            onClick={() => handleClick(item)}
+                            style={{ fontFamily: 'Orbitron', fontSize: '9px', letterSpacing: '0.2em', color: isActive ? '#00d4ff' : 'rgba(0,212,255,0.4)', background: 'none', border: 'none', borderBottom: isActive ? '1px solid #00d4ff' : 'none', paddingBottom: '2px', cursor: item === 'SETTINGS' ? 'pointer' : 'default' }}
+                        >
+                            {item}
+                        </button>
+                    );
+                })}
             </div>
 
             <div style={{ display: 'flex', gap: '16px' }}>
