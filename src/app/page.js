@@ -153,8 +153,8 @@ export default function JarvisPage() {
   const executeAction = useCallback(async (action) => {
     if (!action) return;
     if (action.type === 'open_url') {
-      setPendingUrl({ url: action.url, name: action.site_name });
-      setLogLine(`Ready to open ${action.site_name}`);
+      window.open(action.url, '_blank');
+      setLogLine(`Opening ${action.site_name}`);
       return;
     }
     if (action.type === 'app_launch' && agentConnected) {
