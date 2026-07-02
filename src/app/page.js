@@ -285,12 +285,7 @@ export default function JarvisPage() {
           h < 21 ? 'Good evening' : 'Good night';
 
     const intro = `${timeGreet}, sir.
-
-JARVIS online and standing by. All systems are operational. Neural synchronization is active, communications are secure, and security protocols are fully engaged.
-
-I'm ready to assist with research, analysis, planning, creative projects, technical challenges, or any task you have in mind.
-
-How may I be of service today?`;
+System initialization complete. All core modules are online and operating within normal parameters. Voice authentication successful. I am JARVIS, your intelligent assistant. I am prepared to analyze information, automate tasks, monitor your systems, and assist you with your objectives. Awaiting your command.`;
 
     setStatus('listening');
     setLogLine('Wake sequence initiated — all systems online');
