@@ -41,7 +41,7 @@ export default function SatelliteLink() {
                 }
             },
             () => setStatus('denied'),
-            { timeout: 8000 }
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
     }, []);
 

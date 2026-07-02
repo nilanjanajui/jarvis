@@ -25,7 +25,7 @@ export default function AtmosphericData() {
                 }
             },
             () => setStatus('denied'),
-            { timeout: 8000 }
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
 
         // Refresh every 10 minutes
