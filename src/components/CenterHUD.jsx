@@ -3,7 +3,6 @@ import { useState } from 'react';
 
 function getGreeting() {
     const h = new Date().getHours();
-    if (h >= 1 && h < 5) return 'GOOD NIGHT';
     if (h < 12) return 'GOOD MORNING';
     if (h < 17) return 'GOOD AFTERNOON';
     if (h < 21) return 'GOOD EVENING';
