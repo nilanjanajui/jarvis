@@ -27,7 +27,15 @@ const PARTICLES = Array.from({ length: 25 }, () => ({
 export default function JarvisPage() {
   const [status, setStatus] = useState('idle');
   const [transcript, setTranscript] = useState('');
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const saved = localStorage.getItem('jarvis-history');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
   const [logLine, setLogLine] = useState('');
   const [elevenLabsOk, setElevenLabsOk] = useState(true);
   const [agentConnected, setAgentConnected] = useState(false);
@@ -49,6 +57,14 @@ export default function JarvisPage() {
   const userLocationRef = useRef(null);
 
   useEffect(() => { messagesRef.current = messages; }, [messages]);
+  useEffect(() => {
+    if (messages.length === 0) return;
+    try {
+      localStorage.setItem('jarvis-history', JSON.stringify(messages.slice(-40)));
+    } catch (e) {
+      console.error('Failed to save history:', e);
+    }
+  }, [messages]);
   useEffect(() => { statusRef.current = status; }, [status]);
   useEffect(() => { agentConnectedRef.current = agentConnected; }, [agentConnected]);
   useEffect(() => { elevenLabsOkRef.current = elevenLabsOk; }, [elevenLabsOk]);
@@ -348,6 +364,12 @@ How may I be of service today?`;
     }
   };
 
+  const clearHistory = () => {
+    setMessages([]);
+    localStorage.removeItem('jarvis-history');
+    setLogLine('Conversation history cleared');
+  };
+
   const handleMicClick = () => {
     if (alwaysOn || status !== 'idle') return;
     setStatus('listening');
@@ -405,6 +427,21 @@ How may I be of service today?`;
               <span style={{ fontFamily: 'Share Tech Mono', fontSize: '9px', color: 'rgba(0,212,255,0.4)', letterSpacing: '0.08em' }}>
                 &quot;wake up jarvis&quot; to greet · &quot;jarvis sleep&quot; to pause
               </span>
+            </>
+          )}
+          {messages.length > 0 && (
+            <>
+              <span style={{ color: 'rgba(0,212,255,0.2)' }}>|</span>
+              <button
+                onClick={clearHistory}
+                style={{
+                  fontFamily: 'Share Tech Mono', fontSize: '9px', letterSpacing: '0.1em',
+                  background: 'none', border: '1px solid rgba(239,68,68,0.3)',
+                  color: 'rgba(239,68,68,0.7)', padding: '2px 10px', cursor: 'pointer', borderRadius: '2px',
+                }}
+              >
+                CLEAR HISTORY ({messages.length})
+              </button>
             </>
           )}
         </div>
