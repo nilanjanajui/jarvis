@@ -33,6 +33,7 @@ export default function JarvisPage() {
   const [agentConnected, setAgentConnected] = useState(false);
   const [alwaysOn, setAlwaysOn] = useState(false);
   const [userLocation, setUserLocation] = useState(null);
+  const [pendingUrl, setPendingUrl] = useState(null);
 
   const recognitionRef = useRef(null);
   const recognitionRunning = useRef(false);
@@ -43,11 +44,13 @@ export default function JarvisPage() {
   const alwaysOnRef = useRef(false);
   const elevenLabsOkRef = useRef(true);
   const handleSendRef = useRef(null);
+  const agentConnectedRef = useRef(false);
   const wakeUpRef = useRef(null);
   const userLocationRef = useRef(null);
 
   useEffect(() => { messagesRef.current = messages; }, [messages]);
   useEffect(() => { statusRef.current = status; }, [status]);
+  useEffect(() => { agentConnectedRef.current = agentConnected; }, [agentConnected]);
   useEffect(() => { elevenLabsOkRef.current = elevenLabsOk; }, [elevenLabsOk]);
   useEffect(() => { userLocationRef.current = userLocation; }, [userLocation]);
 
@@ -150,16 +153,22 @@ export default function JarvisPage() {
   const executeAction = useCallback(async (action) => {
     if (!action) return;
     if (action.type === 'open_url') {
-      window.open(action.url, '_blank');
-      setLogLine(`Opening ${action.site_name}`);
+      setPendingUrl({ url: action.url, name: action.site_name });
+      setLogLine(`Ready to open ${action.site_name}`);
       return;
     }
-    if (action.type === 'open_app' && agentConnected) {
-      await fetch(`${AGENT}/execute`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+    if (action.type === 'app_launch' && agentConnected) {
+      const res = await fetch(`${AGENT}/execute`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ app: action.app }),
       });
-      setLogLine(`Launching ${action.app}`);
+      if (res.ok) {
+        setLogLine(`Launching ${action.app}`);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setLogLine(`Agent: ${err.message || 'failed to open app'}`);
+      }
       return;
     }
     if (action.type === 'volume' && agentConnected) {
@@ -428,6 +437,23 @@ How may I be of service today?`;
         </div>
       </div>
 
+      {pendingUrl && (
+        <div style={{ position: 'fixed', bottom: '28px', left: '50%', transform: 'translateX(-50%)', zIndex: 100, display: 'flex', alignItems: 'center', gap: '12px', background: 'rgba(0,18,36,0.97)', border: '1px solid rgba(0,212,255,0.4)', padding: '10px 20px', boxShadow: '0 0 30px rgba(0,212,255,0.15)' }}>
+          <span style={{ fontFamily: 'Share Tech Mono', fontSize: '11px', color: 'rgba(0,212,255,0.7)', letterSpacing: '0.08em' }}>
+            Open {pendingUrl.name}?
+          </span>
+          <button
+            onClick={() => { window.open(pendingUrl.url, '_blank'); setPendingUrl(null); }}
+            style={{ fontFamily: 'Orbitron', fontSize: '9px', letterSpacing: '0.15em', background: 'rgba(0,212,255,0.1)', border: '1px solid #00d4ff', color: '#00d4ff', padding: '4px 14px', cursor: 'pointer' }}>
+            OPEN
+          </button>
+          <button
+            onClick={() => setPendingUrl(null)}
+            style={{ fontFamily: 'Orbitron', fontSize: '9px', letterSpacing: '0.15em', background: 'none', border: '1px solid rgba(0,212,255,0.2)', color: 'rgba(0,212,255,0.4)', padding: '4px 14px', cursor: 'pointer' }}>
+            DISMISS
+          </button>
+        </div>
+      )}
       <audio ref={audioRef} />
     </div>
   );

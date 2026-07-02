@@ -205,12 +205,13 @@ def execute():
 
     try:
         subprocess.Popen(
-            cmd,
-            shell=True,
-            env=ENV,                      # ← full user environment
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
+    cmd,
+    shell=True,
+    env=ENV,
+    stdout=subprocess.DEVNULL,
+    stderr=None,  # ← let it print to Flask's terminal so you can see the error
+    start_new_session=True,  # ← decouple from Flask's process group
+)
         print(f'[execute] Opened: {app_name} → {cmd}')
         return jsonify({'success': True, 'command': cmd})
     except Exception as e:
