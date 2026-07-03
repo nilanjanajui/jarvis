@@ -61,6 +61,7 @@ export default function JarvisPage() {
   const [showTimerPanel, setShowTimerPanel] = useState(false);
   const [showNotebook, setShowNotebook] = useState(false);
   const [particles, setParticles] = useState([]);
+  const [activeNav, setActiveNav] = useState('DASHBOARD');
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -576,32 +577,37 @@ System initialization complete. All core modules are online and operating within
 
       {/* App layer */}
       <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', height: '100vh' }}>
-        <Navbar onSettingsClick={() => { setSettingsOpenSeq((n) => n + 1); setShowSettings(true); }} settingsOpen={showSettings} />
+        <Navbar
+          activeItem={activeNav}
+          onNavigate={setActiveNav}
+          onSettingsClick={() => { setSettingsOpenSeq((n) => n + 1); setShowSettings(true); setActiveNav('SETTINGS'); }}
+          settingsOpen={showSettings}
+        />
 
         {/* Status bar */}
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '14px', padding: '4px 0', borderBottom: '1px solid rgba(0,212,255,0.06)', background: 'rgba(0,5,12,0.88)', flexWrap: 'wrap' }}>
-          <span style={{ fontFamily: 'Share Tech Mono', fontSize: '9px', color: agentConnected ? '#22c55e' : 'rgba(0,212,255,0.3)', letterSpacing: '0.1em' }}>
+          <span style={{ fontFamily: 'Share Tech Mono', fontSize: '11px', color: agentConnected ? '#22c55e' : 'rgba(0,212,255,0.3)', letterSpacing: '0.1em' }}>
             {agentConnected ? '● AGENT ONLINE' : '○ AGENT OFFLINE'}
           </span>
           <span style={{ color: 'rgba(0,212,255,0.2)' }}>|</span>
-          <span style={{ fontFamily: 'Share Tech Mono', fontSize: '9px', color: userLocation ? '#22c55e' : 'rgba(0,212,255,0.3)', letterSpacing: '0.1em' }}>
+          <span style={{ fontFamily: 'Share Tech Mono', fontSize: '11px', color: userLocation ? '#22c55e' : 'rgba(0,212,255,0.3)', letterSpacing: '0.1em' }}>
             {userLocation ? '● LOCATION LOCKED' : '○ LOCATION UNKNOWN'}
           </span>
           <span style={{ color: 'rgba(0,212,255,0.2)' }}>|</span>
-          <span style={{ fontFamily: 'Share Tech Mono', fontSize: '9px', color: elevenLabsOk ? '#00d4ff' : '#f59e0b', letterSpacing: '0.1em' }}>
+          <span style={{ fontFamily: 'Share Tech Mono', fontSize: '11px', color: elevenLabsOk ? '#00d4ff' : '#f59e0b', letterSpacing: '0.1em' }}>
             {elevenLabsOk ? '● ELEVENLABS VOICE' : '⚠ BROWSER VOICE'}
           </span>
           <span style={{ color: 'rgba(0,212,255,0.2)' }}>|</span>
           <button
             onClick={toggleAlwaysOn}
-            style={{ fontFamily: 'Share Tech Mono', fontSize: '9px', letterSpacing: '0.1em', background: 'none', border: `1px solid ${alwaysOn ? '#22c55e' : 'rgba(0,212,255,0.25)'}`, color: alwaysOn ? '#22c55e' : 'rgba(0,212,255,0.5)', padding: '2px 10px', cursor: 'pointer', borderRadius: '2px', transition: 'all 0.3s' }}
+            style={{ fontFamily: 'Share Tech Mono', fontSize: '11px', letterSpacing: '0.1em', background: 'none', border: `1px solid ${alwaysOn ? '#22c55e' : 'rgba(0,212,255,0.25)'}`, color: alwaysOn ? '#22c55e' : 'rgba(0,212,255,0.5)', padding: '2px 10px', cursor: 'pointer', borderRadius: '2px', transition: 'all 0.3s' }}
           >
             {alwaysOn ? '● ALWAYS LISTENING' : '○ CLICK TO TALK'}
           </button>
           {alwaysOn && (
             <>
               <span style={{ color: 'rgba(0,212,255,0.2)' }}>|</span>
-              <span style={{ fontFamily: 'Share Tech Mono', fontSize: '9px', color: 'rgba(0,212,255,0.4)', letterSpacing: '0.08em' }}>
+              <span style={{ fontFamily: 'Share Tech Mono', fontSize: '11px', color: 'rgba(0,212,255,0.4)', letterSpacing: '0.08em' }}>
                 &quot;wake up jarvis&quot; to greet · &quot;jarvis sleep&quot; to pause
               </span>
             </>
@@ -612,7 +618,7 @@ System initialization complete. All core modules are online and operating within
               <button
                 onClick={clearHistory}
                 style={{
-                  fontFamily: 'Share Tech Mono', fontSize: '9px', letterSpacing: '0.1em',
+                  fontFamily: 'Share Tech Mono', fontSize: '11px', letterSpacing: '0.1em',
                   background: 'none', border: '1px solid rgba(239,68,68,0.3)',
                   color: 'rgba(239,68,68,0.7)', padding: '2px 10px', cursor: 'pointer', borderRadius: '2px',
                 }}
@@ -647,7 +653,7 @@ System initialization complete. All core modules are online and operating within
               <button
                 onClick={() => setShowCalculator((v) => !v)}
                 style={{
-                  fontFamily: 'Orbitron', fontSize: '9px', letterSpacing: '0.15em',
+                  fontFamily: 'Orbitron', fontSize: '11px', letterSpacing: '0.15em',
                   background: showCalculator ? 'rgba(0,212,255,0.12)' : 'none',
                   border: `1px solid ${showCalculator ? '#00d4ff' : 'rgba(0,212,255,0.2)'}`,
                   color: showCalculator ? '#00d4ff' : 'rgba(0,212,255,0.4)',
@@ -659,7 +665,7 @@ System initialization complete. All core modules are online and operating within
               <button
                 onClick={() => setShowTimerPanel((v) => !v)}
                 style={{
-                  fontFamily: 'Orbitron', fontSize: '9px', letterSpacing: '0.15em',
+                  fontFamily: 'Orbitron', fontSize: '11px', letterSpacing: '0.15em',
                   background: showTimerPanel ? 'rgba(0,212,255,0.12)' : 'none',
                   border: `1px solid ${showTimerPanel ? '#00d4ff' : 'rgba(0,212,255,0.2)'}`,
                   color: showTimerPanel ? '#00d4ff' : 'rgba(0,212,255,0.4)',
@@ -671,7 +677,7 @@ System initialization complete. All core modules are online and operating within
               <button
                 onClick={() => setShowNotebook((v) => !v)}
                 style={{
-                  fontFamily: 'Orbitron', fontSize: '9px', letterSpacing: '0.15em',
+                  fontFamily: 'Orbitron', fontSize: '11px', letterSpacing: '0.15em',
                   background: showNotebook ? 'rgba(0,212,255,0.12)' : 'none',
                   border: `1px solid ${showNotebook ? '#00d4ff' : 'rgba(0,212,255,0.2)'}`,
                   color: showNotebook ? '#00d4ff' : 'rgba(0,212,255,0.4)',
@@ -689,7 +695,7 @@ System initialization complete. All core modules are online and operating within
             >
               <CenterHUD status={status} transcript={transcript} streamingText={streamingText} />
               {!alwaysOn && status === 'idle' && (
-                <div style={{ position: 'absolute', bottom: '6%', left: '50%', transform: 'translateX(-50%)', fontFamily: 'Orbitron', fontSize: '7px', letterSpacing: '0.2em', color: 'rgba(0,212,255,0.25)' }}>
+                <div style={{ position: 'absolute', bottom: '6%', left: '50%', transform: 'translateX(-50%)', fontFamily: 'Orbitron', fontSize: '10px', letterSpacing: '0.2em', color: 'rgba(0,212,255,0.4)' }}>
                   CLICK TO ACTIVATE
                 </div>
               )}
@@ -729,12 +735,12 @@ System initialization complete. All core modules are online and operating within
           </span>
           <button
             onClick={() => { window.open(pendingUrl.url, '_blank'); setPendingUrl(null); }}
-            style={{ fontFamily: 'Orbitron', fontSize: '9px', letterSpacing: '0.15em', background: 'rgba(0,212,255,0.1)', border: '1px solid #00d4ff', color: '#00d4ff', padding: '4px 14px', cursor: 'pointer' }}>
+            style={{ fontFamily: 'Orbitron', fontSize: '11px', letterSpacing: '0.15em', background: 'rgba(0,212,255,0.1)', border: '1px solid #00d4ff', color: '#00d4ff', padding: '4px 14px', cursor: 'pointer' }}>
             OPEN
           </button>
           <button
             onClick={() => setPendingUrl(null)}
-            style={{ fontFamily: 'Orbitron', fontSize: '9px', letterSpacing: '0.15em', background: 'none', border: '1px solid rgba(0,212,255,0.2)', color: 'rgba(0,212,255,0.4)', padding: '4px 14px', cursor: 'pointer' }}>
+            style={{ fontFamily: 'Orbitron', fontSize: '11px', letterSpacing: '0.15em', background: 'none', border: '1px solid rgba(0,212,255,0.2)', color: 'rgba(0,212,255,0.4)', padding: '4px 14px', cursor: 'pointer' }}>
             DISMISS
           </button>
         </div>
@@ -745,7 +751,7 @@ System initialization complete. All core modules are online and operating within
         <SettingsPanel
           key={settingsOpenSeq}
           open={showSettings}
-          onClose={() => setShowSettings(false)}
+          onClose={() => { setShowSettings(false); setActiveNav('DASHBOARD'); }}
           alwaysOnDefault={alwaysOnDefault}
           onToggleAlwaysOnDefault={toggleAlwaysOnDefault}
           onClearHistory={clearHistory}
