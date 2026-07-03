@@ -11,15 +11,31 @@ function Panel({ corner, width, title, onClose, children }) {
         'bottom-right': { bottom: '10px', right: '10px' },
     }[corner];
 
+    // Distinct animation per corner so panels don't move in sync
+    const floatAnim = {
+        'top-right': 'float-panel-1 7s ease-in-out infinite',
+        'bottom-left': 'float-panel-2 8.5s ease-in-out infinite',
+        'bottom-right': 'float-panel-3 6.5s ease-in-out infinite',
+    }[corner];
+
+    const floatDelay = {
+        'top-right': '0s',
+        'bottom-left': '-2.3s',
+        'bottom-right': '-4.1s',
+    }[corner];
+
     return (
         <div style={{
             position: 'absolute', ...pos, width,
             background: 'rgba(0,12,24,0.88)',
             border: '1px solid rgba(0,212,255,0.28)',
-            boxShadow: '0 0 24px rgba(0,212,255,0.08)',
+            boxShadow: '0 8px 28px rgba(0,212,255,0.1), 0 0 24px rgba(0,212,255,0.08)',
             backdropFilter: 'blur(4px)',
             padding: '12px',
             zIndex: 5,
+            animation: floatAnim,
+            animationDelay: floatDelay,
+            willChange: 'transform',
         }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                 <span style={{ fontFamily: 'Orbitron', fontSize: '8px', letterSpacing: '0.18em', color: 'rgba(0,212,255,0.6)' }}>
