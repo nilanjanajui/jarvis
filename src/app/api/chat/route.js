@@ -121,6 +121,61 @@ const tools = [
             parameters: { type: 'object', properties: { action: { type: 'string', enum: ['up', 'down', 'mute'] } }, required: ['action'] },
         },
     },
+
+    {
+        type: 'function',
+        function: {
+            name: 'calculate',
+            description: 'Perform a mathematical calculation. Use for any arithmetic, percentages, or math expressions like "847 times 23" or "15% of 200".',
+            parameters: {
+                type: 'object',
+                properties: { expression: { type: 'string', description: 'Math expression, e.g. "847*23" or "200*0.15"' } },
+                required: ['expression'],
+            },
+        },
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'search_wikipedia',
+            description: 'Look up factual information about a topic, person, place, or thing on Wikipedia. Use for general knowledge questions.',
+            parameters: {
+                type: 'object',
+                properties: { query: { type: 'string', description: 'Topic to look up, e.g. "Albert Einstein", "Bangladesh"' } },
+                required: ['query'],
+            },
+        },
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'set_timer',
+            description: 'Set a countdown timer. Use when user says "set a timer for X minutes/seconds".',
+            parameters: {
+                type: 'object',
+                properties: {
+                    seconds: { type: 'number', description: 'Duration in seconds, e.g. 600 for 10 minutes' },
+                    label: { type: 'string', description: 'What the timer is for, e.g. "tea", "workout"' },
+                },
+                required: ['seconds'],
+            },
+        },
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'set_reminder',
+            description: 'Set a reminder for later. Use when user says "remind me to X in Y minutes" or "remind me to X at [time]". Convert the target time to seconds from now.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    seconds: { type: 'number', description: 'Seconds from now when the reminder should fire' },
+                    message: { type: 'string', description: 'What to remind the user about' },
+                },
+                required: ['seconds', 'message'],
+            },
+        },
+    },
 ];
 
 async function handleToolCall(toolCall, userCoords) {
@@ -132,6 +187,10 @@ async function handleToolCall(toolCall, userCoords) {
         if (name === 'get_weather') return await getWeather(args.location);
         if (name === 'get_location') return userCoords ? await getLocation(userCoords) : 'Location not available.';
         if (name === 'search_news') return await searchNews(args.query);
+        if (name === 'calculate') return calculate(args.expression);
+        if (name === 'search_wikipedia') return await searchWikipedia(args.query);
+        if (name === 'set_timer') return `Timer set for ${args.seconds} seconds${args.label ? ' — ' + args.label : ''}`;
+        if (name === 'set_reminder') return `Reminder set for ${args.seconds} seconds from now: ${args.message}`;
         if (name === 'open_url') return `Opening ${args.site_name} in browser`;
         if (name === 'open_app') return `Opening ${args.app_name}`;
         if (name === 'control_volume') return `Volume ${args.action}`;
@@ -142,8 +201,36 @@ async function handleToolCall(toolCall, userCoords) {
         if (name === 'open_url') return { type: 'open_url', url: args.url, site_name: args.site_name };
         if (name === 'open_app') return { type: 'open_app', app: args.app_name };
         if (name === 'control_volume') return { type: 'volume', action: args.action };
+        if (name === 'set_timer') return { type: 'timer', seconds: args.seconds, label: args.label || 'Timer' };
+        if (name === 'set_reminder') return { type: 'reminder', seconds: args.seconds, message: args.message };
         return null;
     };
+
+    function calculate(expression) {
+        try {
+            // Only allow safe math characters — numbers, operators, parentheses, decimal points
+            const sanitized = expression.replace(/[^0-9+\-*/().%\s]/g, '');
+            if (!sanitized.trim()) return 'Invalid expression.';
+            const result = Function(`"use strict"; return (${sanitized})`)();
+            if (typeof result !== 'number' || !isFinite(result)) return 'Could not compute that.';
+            return `${expression} = ${result}`;
+        } catch {
+            return 'Could not compute that expression.';
+        }
+    }
+
+    async function searchWikipedia(query) {
+        try {
+            const res = await fetch(
+                `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(query)}`
+            );
+            if (!res.ok) return `No Wikipedia article found for "${query}".`;
+            const data = await res.json();
+            return `${data.title}: ${data.extract}`;
+        } catch {
+            return `Could not fetch Wikipedia info for "${query}".`;
+        }
+    }
 
     return {
         toolResult: { role: 'tool', tool_call_id: toolCall.id, content: await getContent() },
@@ -187,8 +274,11 @@ ${userCoords
 
 TOOL NARRATION STYLE:
 - Weather: Speak like a broadcast. "Right now in Chittagong, you're looking at 31 degrees — feels like 34 with the humidity. Partly cloudy, light winds from the southwest."
-- News: Narrate 3–4 headlines like a newsroom anchor. Segue smoothly between them. "Leading today... and in other news... finally..."
-- Web search: Summarise the key point naturally. Don't list sources robotically.`;
+- News: Narrate 3-4 headlines like a newsroom anchor. Segue smoothly between them. "Leading today... and in other news... finally..."
+- Web search: Summarise the key point naturally. Don't list sources robotically.
+- Calculations: State the answer directly and naturally. "That comes out to 19,481, sir."
+- Wikipedia: Summarise the key facts in 2-3 sentences, don't just repeat the raw extract verbatim.
+- Timers/reminders: Confirm naturally. "Timer's set, sir - I'll let you know in ten minutes." Convert spoken durations like "10 minutes" to seconds yourself before calling the tool.`;
 }
 
 export async function POST(req) {

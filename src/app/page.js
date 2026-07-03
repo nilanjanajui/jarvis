@@ -54,6 +54,7 @@ export default function JarvisPage() {
       return false;
     }
   });
+  const [activeTimers, setActiveTimers] = useState([]);
 
   const recognitionRef = useRef(null);
   const recognitionRunning = useRef(false);
@@ -213,8 +214,43 @@ export default function JarvisPage() {
         body: JSON.stringify({ action: action.action }),
       });
       setLogLine(`Volume ${action.action}`);
+      return;
     }
-  }, [agentConnected]);
+
+    if (action.type === 'timer') {
+      const id = Date.now();
+      const endsAt = Date.now() + action.seconds * 1000;
+      setActiveTimers((prev) => [...prev, { id, label: action.label, endsAt }]);
+      setLogLine(`Timer started: ${action.label} (${action.seconds}s)`);
+
+      setTimeout(() => {
+        setActiveTimers((prev) => prev.filter((t) => t.id !== id));
+        if ('Notification' in window && Notification.permission === 'granted') {
+          new Notification('J.A.R.V.I.S. — Timer Complete', { body: `${action.label} timer is done, sir.` });
+        }
+        speak(`Timer complete, sir. ${action.label} is done.`);
+      }, action.seconds * 1000);
+      return;
+    }
+
+    if (action.type === 'reminder') {
+      setLogLine(`Reminder set: "${action.message}" in ${action.seconds}s`);
+      setTimeout(() => {
+        if ('Notification' in window && Notification.permission === 'granted') {
+          new Notification('J.A.R.V.I.S. — Reminder', { body: action.message });
+        }
+        speak(`Reminder, sir: ${action.message}`);
+      }, action.seconds * 1000);
+    }
+  }, [agentConnected, speak]);
+
+  const requestNotificationPermission = useCallback(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, []);
+
+  useEffect(() => { requestNotificationPermission(); }, [requestNotificationPermission]);
 
   // ── 3. handleSend — passes location + local time ──────────────────────────
   const handleSend = useCallback(async (text) => {
@@ -530,6 +566,14 @@ System initialization complete. All core modules are online and operating within
             <BioMetrics />
             <AudioVisualizer />
             <SystemLog extraLine={logLine} />
+            {activeTimers.length > 0 && (
+              <div className="hud-card" style={{ marginTop: '8px' }}>
+                <div className="hud-label">Active Timers</div>
+                {activeTimers.map((t) => (
+                  <TimerRow key={t.id} label={t.label} endsAt={t.endsAt} />
+                ))}
+              </div>
+            )}
           </div>
 
           <div onClick={handleMicClick} style={{ cursor: alwaysOn || status !== 'idle' ? 'default' : 'pointer', position: 'relative' }}>
@@ -583,4 +627,29 @@ System initialization complete. All core modules are online and operating within
       )}
     </div>
   );
+  function TimerRow({ label, endsAt }) {
+    const [remaining, setRemaining] = useState(Math.max(0, endsAt - Date.now()));
+
+    useEffect(() => {
+      const t = setInterval(() => {
+        setRemaining(Math.max(0, endsAt - Date.now()));
+      }, 1000);
+      return () => clearInterval(t);
+    }, [endsAt]);
+
+    const mins = Math.floor(remaining / 60000);
+    const secs = Math.floor((remaining % 60000) / 1000);
+
+    return (
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+        <span style={{ fontFamily: 'Share Tech Mono', fontSize: '10px', color: 'rgba(0,212,255,0.7)' }}>
+          {label}
+        </span>
+        <span style={{ fontFamily: 'Orbitron', fontSize: '11px', color: '#00d4ff', fontWeight: '700' }}>
+          {mins}:{secs.toString().padStart(2, '0')}
+        </span>
+      </div>
+    );
+  }
 }
+
