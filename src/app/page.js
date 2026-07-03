@@ -13,7 +13,7 @@ import SatelliteLink from '@/components/SatelliteLink';
 import AtmosphericData from '@/components/AtmosphericData';
 import SecurityStatus from '@/components/SecurityStatus';
 import SystemTerminal from '@/components/SystemTerminal';
-import HudTools from '@/components/HudTools';
+import { CalculatorPanel, TimerPanel, NotebookPanel } from '@/components/HudTools';
 
 const AGENT = 'http://localhost:5001';
 
@@ -56,7 +56,9 @@ export default function JarvisPage() {
     }
   });
   const [activeTimers, setActiveTimers] = useState([]);
-  const [hudMode, setHudMode] = useState('sphere');
+  const [showCalculator, setShowCalculator] = useState(false);
+  const [showTimerPanel, setShowTimerPanel] = useState(false);
+  const [showNotebook, setShowNotebook] = useState(false);
 
   const recognitionRef = useRef(null);
   const recognitionRunning = useRef(false);
@@ -184,7 +186,7 @@ export default function JarvisPage() {
     const endsAt = Date.now() + seconds * 1000;
     setActiveTimers((prev) => [...prev, { id, label, endsAt }]);
     setLogLine(`Timer started: ${label} (${seconds}s)`);
-    setHudMode('timer');
+    setShowTimerPanel(true);
 
     setTimeout(() => {
       setActiveTimers((prev) => prev.filter((t) => t.id !== id));
@@ -585,46 +587,72 @@ System initialization complete. All core modules are online and operating within
 
           <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
 
-            {/* Mode tabs */}
+            {/* Toggle buttons — panels layer on top, sphere stays visible always */}
             <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', padding: '10px 0' }}>
-              {[
-                { key: 'sphere', label: 'JARVIS' },
-                { key: 'calculator', label: 'CALC' },
-                { key: 'timer', label: 'TIMER' },
-                { key: 'notebook', label: 'NOTES' },
-              ].map((tab) => (
-                <button
-                  key={tab.key}
-                  onClick={() => setHudMode(tab.key)}
-                  style={{
-                    fontFamily: 'Orbitron', fontSize: '9px', letterSpacing: '0.15em',
-                    background: hudMode === tab.key ? 'rgba(0,212,255,0.12)' : 'none',
-                    border: `1px solid ${hudMode === tab.key ? '#00d4ff' : 'rgba(0,212,255,0.2)'}`,
-                    color: hudMode === tab.key ? '#00d4ff' : 'rgba(0,212,255,0.4)',
-                    padding: '5px 14px', cursor: 'pointer', transition: 'all 0.2s',
-                  }}
-                >
-                  {tab.label}
-                </button>
-              ))}
+              <button
+                onClick={() => setShowCalculator((v) => !v)}
+                style={{
+                  fontFamily: 'Orbitron', fontSize: '9px', letterSpacing: '0.15em',
+                  background: showCalculator ? 'rgba(0,212,255,0.12)' : 'none',
+                  border: `1px solid ${showCalculator ? '#00d4ff' : 'rgba(0,212,255,0.2)'}`,
+                  color: showCalculator ? '#00d4ff' : 'rgba(0,212,255,0.4)',
+                  padding: '5px 14px', cursor: 'pointer', transition: 'all 0.2s',
+                }}
+              >
+                CALC
+              </button>
+              <button
+                onClick={() => setShowTimerPanel((v) => !v)}
+                style={{
+                  fontFamily: 'Orbitron', fontSize: '9px', letterSpacing: '0.15em',
+                  background: showTimerPanel ? 'rgba(0,212,255,0.12)' : 'none',
+                  border: `1px solid ${showTimerPanel ? '#00d4ff' : 'rgba(0,212,255,0.2)'}`,
+                  color: showTimerPanel ? '#00d4ff' : 'rgba(0,212,255,0.4)',
+                  padding: '5px 14px', cursor: 'pointer', transition: 'all 0.2s',
+                }}
+              >
+                TIMER
+              </button>
+              <button
+                onClick={() => setShowNotebook((v) => !v)}
+                style={{
+                  fontFamily: 'Orbitron', fontSize: '9px', letterSpacing: '0.15em',
+                  background: showNotebook ? 'rgba(0,212,255,0.12)' : 'none',
+                  border: `1px solid ${showNotebook ? '#00d4ff' : 'rgba(0,212,255,0.2)'}`,
+                  color: showNotebook ? '#00d4ff' : 'rgba(0,212,255,0.4)',
+                  padding: '5px 14px', cursor: 'pointer', transition: 'all 0.2s',
+                }}
+              >
+                NOTES
+              </button>
             </div>
 
-            {/* Content area */}
+            {/* Sphere always visible — panels float on top in corners */}
             <div
-              onClick={hudMode === 'sphere' ? handleMicClick : undefined}
-              style={{ flex: 1, cursor: hudMode === 'sphere' && !alwaysOn && status === 'idle' ? 'pointer' : 'default', position: 'relative' }}
+              onClick={handleMicClick}
+              style={{ flex: 1, cursor: !alwaysOn && status === 'idle' ? 'pointer' : 'default', position: 'relative' }}
             >
-              {hudMode === 'sphere' ? (
-                <>
-                  <CenterHUD status={status} transcript={transcript} streamingText={streamingText} />
-                  {!alwaysOn && status === 'idle' && (
-                    <div style={{ position: 'absolute', bottom: '6%', left: '50%', transform: 'translateX(-50%)', fontFamily: 'Orbitron', fontSize: '7px', letterSpacing: '0.2em', color: 'rgba(0,212,255,0.25)' }}>
-                      CLICK TO ACTIVATE
-                    </div>
-                  )}
-                </>
-              ) : (
-                <HudTools mode={hudMode} activeTimers={activeTimers} onAddTimer={startTimer} />
+              <CenterHUD status={status} transcript={transcript} streamingText={streamingText} />
+              {!alwaysOn && status === 'idle' && (
+                <div style={{ position: 'absolute', bottom: '6%', left: '50%', transform: 'translateX(-50%)', fontFamily: 'Orbitron', fontSize: '7px', letterSpacing: '0.2em', color: 'rgba(0,212,255,0.25)' }}>
+                  CLICK TO ACTIVATE
+                </div>
+              )}
+
+              {showCalculator && (
+                <div onClick={(e) => e.stopPropagation()}>
+                  <CalculatorPanel onClose={() => setShowCalculator(false)} />
+                </div>
+              )}
+              {showTimerPanel && (
+                <div onClick={(e) => e.stopPropagation()}>
+                  <TimerPanel onClose={() => setShowTimerPanel(false)} activeTimers={activeTimers} onAddTimer={startTimer} />
+                </div>
+              )}
+              {showNotebook && (
+                <div onClick={(e) => e.stopPropagation()}>
+                  <NotebookPanel onClose={() => setShowNotebook(false)} />
+                </div>
               )}
             </div>
           </div>
