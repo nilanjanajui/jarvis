@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 function getGreeting() {
     const h = new Date().getHours();
@@ -11,6 +11,34 @@ function getGreeting() {
 
 export default function CenterHUD({ status, transcript, streamingText }) {
     const [greeting] = useState(getGreeting);
+    const [ticks, setTicks] = useState([]);
+    const [scanPath, setScanPath] = useState('');
+
+    useEffect(() => {
+        const t = setTimeout(() => {
+            // Degree tick ring coordinates
+            const computedTicks = Array.from({ length: 24 }, (_, i) => {
+                const deg = i * 15;
+                const rad = (deg * Math.PI) / 180;
+                const isMajor = deg % 45 === 0;
+                const r1 = 224, r2 = isMajor ? 213 : 218;
+                return {
+                    x1: 250 + r1 * Math.cos(rad),
+                    y1: 250 + r1 * Math.sin(rad),
+                    x2: 250 + r2 * Math.cos(rad),
+                    y2: 250 + r2 * Math.sin(rad),
+                    isMajor,
+                };
+            });
+            setTicks(computedTicks);
+
+            // Scanning sweep arc path
+            const sx = 250 + 210 * Math.sin(Math.PI / 5);
+            const sy = 250 - 210 * Math.cos(Math.PI / 5);
+            setScanPath(`M250,250 L250,${250 - 210} A210,210 0 0,1 ${sx},${sy} Z`);
+        }, 0);
+        return () => clearTimeout(t);
+    }, []);
 
     const label = {
         idle: 'Standing by for instructions.',
@@ -80,18 +108,10 @@ export default function CenterHUD({ status, transcript, streamingText }) {
 
                 {/* Degree tick ring — the classic HUD detail, slow independent rotation */}
                 <g style={{ transformOrigin: '250px 250px', animation: 'spin 45s linear infinite' }}>
-                    {Array.from({ length: 24 }).map((_, i) => {
-                        const deg = i * 15;
-                        const rad = (deg * Math.PI) / 180;
-                        const isMajor = deg % 45 === 0;
-                        const r1 = 224, r2 = isMajor ? 213 : 218;
-                        const x1 = 250 + r1 * Math.cos(rad), y1 = 250 + r1 * Math.sin(rad);
-                        const x2 = 250 + r2 * Math.cos(rad), y2 = 250 + r2 * Math.sin(rad);
-                        return (
-                            <line key={i} x1={x1} y1={y1} x2={x2} y2={y2}
-                                stroke={ringColor} strokeWidth={isMajor ? 1.2 : 0.5} opacity="0.45" />
-                        );
-                    })}
+                    {ticks.map((t, i) => (
+                        <line key={i} x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2}
+                            stroke={ringColor} strokeWidth={t.isMajor ? 1.2 : 0.5} opacity="0.45" />
+                    ))}
                 </g>
 
                 {/* Outer solid ring */}
@@ -107,12 +127,11 @@ export default function CenterHUD({ status, transcript, streamingText }) {
                     style={{ transition: 'stroke 0.5s' }} />
 
                 {/* Scanning sweep */}
-                <g style={{ transformOrigin: '250px 250px', animation: `spin ${scanSpeed} linear infinite` }}>
-                    <path
-                        d={`M250,250 L250,${250 - 210} A210,210 0 0,1 ${250 + 210 * Math.sin(Math.PI / 5)},${250 - 210 * Math.cos(Math.PI / 5)} Z`}
-                        fill="url(#scanG)" opacity="0.7"
-                    />
-                </g>
+                {scanPath && (
+                    <g style={{ transformOrigin: '250px 250px', animation: `spin ${scanSpeed} linear infinite` }}>
+                        <path d={scanPath} fill="url(#scanG)" opacity="0.7" />
+                    </g>
+                )}
 
                 {/* Crosshairs */}
                 <line x1="15" y1="250" x2="485" y2="250" stroke={ringColor} strokeWidth="0.4" opacity="0.15" />

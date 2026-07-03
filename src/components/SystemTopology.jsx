@@ -1,27 +1,41 @@
 'use client';
+import { useState, useEffect } from 'react';
 
 export default function SystemTopology() {
-    const cols = 10, rows = 7, W = 220, H = 110;
-    const pts = [];
-    for (let r = 0; r < rows; r++)
-        for (let c = 0; c < cols; c++) {
-            const x = (c / (cols - 1)) * W;
-            const z = Math.sin(c * 0.8) * 12 + Math.cos(r * 1.1) * 10 + Math.sin((c + r) * 0.5) * 8;
-            pts.push({ x, y: (r / (rows - 1)) * H + z, r, c });
-        }
+    const [lines, setLines] = useState([]);
+    const [pts, setPts] = useState([]);
 
-    const get = (r, c) => pts.find((p) => p.r === r && p.c === c);
-    const lines = [];
-    for (let r = 0; r < rows; r++)
-        for (let c = 0; c < cols - 1; c++) {
-            const a = get(r, c), b = get(r, c + 1);
-            if (a && b) lines.push(`M${a.x},${a.y}L${b.x},${b.y}`);
-        }
-    for (let r = 0; r < rows - 1; r++)
-        for (let c = 0; c < cols; c++) {
-            const a = get(r, c), b = get(r + 1, c);
-            if (a && b) lines.push(`M${a.x},${a.y}L${b.x},${b.y}`);
-        }
+    useEffect(() => {
+        const t = setTimeout(() => {
+            const cols = 10, rows = 7, W = 220, H = 110;
+            const points = [];
+            for (let r = 0; r < rows; r++)
+                for (let c = 0; c < cols; c++) {
+                    const x = (c / (cols - 1)) * W;
+                    const z = Math.sin(c * 0.8) * 12 + Math.cos(r * 1.1) * 10 + Math.sin((c + r) * 0.5) * 8;
+                    points.push({ x, y: (r / (rows - 1)) * H + z, r, c });
+                }
+
+            const get = (r, c) => points.find((p) => p.r === r && p.c === c);
+            const lns = [];
+            for (let r = 0; r < rows; r++)
+                for (let c = 0; c < cols - 1; c++) {
+                    const a = get(r, c), b = get(r, c + 1);
+                    if (a && b) lns.push(`M${a.x},${a.y}L${b.x},${b.y}`);
+                }
+            for (let r = 0; r < rows - 1; r++)
+                for (let c = 0; c < cols; c++) {
+                    const a = get(r, c), b = get(r + 1, c);
+                    if (a && b) lns.push(`M${a.x},${a.y}L${b.x},${b.y}`);
+                }
+
+            setPts(points);
+            setLines(lns);
+        }, 0);
+        return () => clearTimeout(t);
+    }, []);
+
+    const W = 220, H = 110;
 
     return (
         <div className="hud-card" style={{ marginBottom: '8px' }}>
