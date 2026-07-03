@@ -1,26 +1,51 @@
 'use client';
 
-export default function Navbar({ onSettingsClick, settingsOpen }) {
+import { useState } from 'react';
+
+export default function Navbar({ onSettingsClick, settingsOpen, activeItem = 'DASHBOARD', onNavigate }) {
     const items = ['HOME', 'DASHBOARD', 'SETTINGS', 'ABOUT'];
+    const [hovered, setHovered] = useState(null);
 
     const handleClick = (item) => {
         if (item === 'SETTINGS') onSettingsClick?.();
+        onNavigate?.(item);
     };
 
     return (
-        <nav style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 24px', borderBottom: '1px solid rgba(0,212,255,0.15)', background: 'rgba(3,8,16,0.95)' }}>
+        <nav style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 24px', borderBottom: '1px solid rgba(0,212,255,0.15)', background: 'rgba(3,8,16,0.95)' }}>
             <span style={{ fontFamily: 'Orbitron', fontSize: '16px', fontWeight: '900', letterSpacing: '0.2em', color: '#00d4ff', textShadow: '0 0 10px #00d4ff66' }}>
                 J.A.R.V.I.S.
             </span>
 
             <div style={{ display: 'flex', gap: '32px' }}>
                 {items.map((item) => {
-                    const isActive = item === 'DASHBOARD' || (item === 'SETTINGS' && settingsOpen);
+                    const isActive = item === activeItem || (item === 'SETTINGS' && settingsOpen);
+                    const isHovered = hovered === item;
+
+                    let color = 'rgba(0,212,255,0.65)';
+                    if (isActive) color = '#00d4ff';
+                    else if (isHovered) color = 'rgba(0,212,255,0.9)';
+
                     return (
                         <button
                             key={item}
                             onClick={() => handleClick(item)}
-                            style={{ fontFamily: 'Orbitron', fontSize: '9px', letterSpacing: '0.2em', color: isActive ? '#00d4ff' : 'rgba(0,212,255,0.4)', background: 'none', border: 'none', borderBottom: isActive ? '1px solid #00d4ff' : 'none', paddingBottom: '2px', cursor: item === 'SETTINGS' ? 'pointer' : 'default' }}
+                            onMouseEnter={() => setHovered(item)}
+                            onMouseLeave={() => setHovered(null)}
+                            style={{
+                                fontFamily: 'Orbitron',
+                                fontSize: '13px',
+                                fontWeight: isActive ? '700' : '500',
+                                letterSpacing: '0.15em',
+                                color,
+                                textShadow: isActive || isHovered ? '0 0 8px #00d4ff88' : 'none',
+                                background: 'none',
+                                border: 'none',
+                                borderBottom: isActive ? '2px solid #00d4ff' : '2px solid transparent',
+                                paddingBottom: '4px',
+                                cursor: 'pointer',
+                                transition: 'color 0.2s ease, text-shadow 0.2s ease, border-color 0.2s ease',
+                            }}
                         >
                             {item}
                         </button>
