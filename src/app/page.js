@@ -3,11 +3,16 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import Navbar from '@/components/Navbar';
 import SettingsPanel from '@/components/SettingsPanel';
+import NeuralSync from '@/components/NeuralSync';
 import BioMetrics from '@/components/BioMetrics';
 import AudioVisualizer from '@/components/AudioVisualizer';
+import SystemLog from '@/components/SystemLog';
 import CenterHUD from '@/components/CenterHUD';
-import SystemDrawer from '@/components/SystemDrawer';
-import BottomDock from '@/components/BottomDock';
+import SystemTopology from '@/components/SystemTopology';
+import SatelliteLink from '@/components/SatelliteLink';
+import AtmosphericData from '@/components/AtmosphericData';
+import SecurityStatus from '@/components/SecurityStatus';
+import SystemTerminal from '@/components/SystemTerminal';
 import { CalculatorPanel, TimerPanel, NotebookPanel } from '@/components/HudTools';
 import { DEFAULT_VOICE_ID } from '@/lib/voices';
 
@@ -57,7 +62,6 @@ export default function JarvisPage() {
   const [showNotebook, setShowNotebook] = useState(false);
   const [particles, setParticles] = useState([]);
   const [activeNav, setActiveNav] = useState('DASHBOARD');
-  const [showSystemDrawer, setShowSystemDrawer] = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -626,17 +630,14 @@ System initialization complete. All core modules are online and operating within
         </div>
 
         {/* Layout */}
-        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '300px 1fr', overflow: 'hidden', minHeight: 0 }}>
-          <div style={{ padding: '14px', overflowY: 'auto', borderRight: '1px solid rgba(0,212,255,0.07)' }}>
-            <div className="hud-hero" style={{ marginBottom: '14px' }}>
-              <BioMetrics />
-            </div>
-            <div className="hud-hero" style={{ marginBottom: '14px' }}>
-              <AudioVisualizer />
-            </div>
-
+        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '272px 1fr 272px', overflow: 'hidden', minHeight: 0 }}>
+          <div style={{ padding: '10px', overflowY: 'auto', borderRight: '1px solid rgba(0,212,255,0.07)' }}>
+            <NeuralSync />
+            <BioMetrics />
+            <AudioVisualizer />
+            <SystemLog extraLine={logLine} />
             {activeTimers.length > 0 && (
-              <div className="hud-card" style={{ marginBottom: '14px' }}>
+              <div className="hud-card" style={{ marginTop: '8px' }}>
                 <div className="hud-label">Active Timers</div>
                 {activeTimers.map((t) => (
                   <TimerRow key={t.id} label={t.label} endsAt={t.endsAt} />
@@ -647,10 +648,50 @@ System initialization complete. All core modules are online and operating within
 
           <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
 
+            {/* Toggle buttons — panels layer on top, sphere stays visible always */}
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', padding: '10px 0' }}>
+              <button
+                onClick={() => setShowCalculator((v) => !v)}
+                style={{
+                  fontFamily: 'Orbitron', fontSize: '11px', letterSpacing: '0.15em',
+                  background: showCalculator ? 'rgba(0,212,255,0.12)' : 'none',
+                  border: `1px solid ${showCalculator ? '#00d4ff' : 'rgba(0,212,255,0.2)'}`,
+                  color: showCalculator ? '#00d4ff' : 'rgba(0,212,255,0.4)',
+                  padding: '5px 14px', cursor: 'pointer', transition: 'all 0.2s',
+                }}
+              >
+                CALC
+              </button>
+              <button
+                onClick={() => setShowTimerPanel((v) => !v)}
+                style={{
+                  fontFamily: 'Orbitron', fontSize: '11px', letterSpacing: '0.15em',
+                  background: showTimerPanel ? 'rgba(0,212,255,0.12)' : 'none',
+                  border: `1px solid ${showTimerPanel ? '#00d4ff' : 'rgba(0,212,255,0.2)'}`,
+                  color: showTimerPanel ? '#00d4ff' : 'rgba(0,212,255,0.4)',
+                  padding: '5px 14px', cursor: 'pointer', transition: 'all 0.2s',
+                }}
+              >
+                TIMER
+              </button>
+              <button
+                onClick={() => setShowNotebook((v) => !v)}
+                style={{
+                  fontFamily: 'Orbitron', fontSize: '11px', letterSpacing: '0.15em',
+                  background: showNotebook ? 'rgba(0,212,255,0.12)' : 'none',
+                  border: `1px solid ${showNotebook ? '#00d4ff' : 'rgba(0,212,255,0.2)'}`,
+                  color: showNotebook ? '#00d4ff' : 'rgba(0,212,255,0.4)',
+                  padding: '5px 14px', cursor: 'pointer', transition: 'all 0.2s',
+                }}
+              >
+                NOTES
+              </button>
+            </div>
+
             {/* Sphere always visible — panels float on top in corners */}
             <div
               onClick={handleMicClick}
-              style={{ flex: 1, cursor: !alwaysOn && status === 'idle' ? 'pointer' : 'default', position: 'relative', paddingBottom: '90px' }}
+              style={{ flex: 1, cursor: !alwaysOn && status === 'idle' ? 'pointer' : 'default', position: 'relative' }}
             >
               <CenterHUD status={status} transcript={transcript} streamingText={streamingText} />
               {!alwaysOn && status === 'idle' && (
@@ -676,25 +717,16 @@ System initialization complete. All core modules are online and operating within
               )}
             </div>
           </div>
+
+          <div style={{ padding: '10px', overflowY: 'auto', borderLeft: '1px solid rgba(0,212,255,0.07)' }}>
+            <SystemTopology />
+            <SatelliteLink />
+            <AtmosphericData />
+            <SecurityStatus />
+            <SystemTerminal />
+          </div>
         </div>
       </div>
-
-      <SystemDrawer
-        open={showSystemDrawer}
-        onClose={() => setShowSystemDrawer(false)}
-        extraLogLine={logLine}
-      />
-
-      <BottomDock
-        showCalculator={showCalculator}
-        onToggleCalculator={() => setShowCalculator((v) => !v)}
-        showTimerPanel={showTimerPanel}
-        onToggleTimerPanel={() => setShowTimerPanel((v) => !v)}
-        showNotebook={showNotebook}
-        onToggleNotebook={() => setShowNotebook((v) => !v)}
-        showSystemDrawer={showSystemDrawer}
-        onToggleSystemDrawer={() => setShowSystemDrawer((v) => !v)}
-      />
 
       {pendingUrl && (
         <div style={{ position: 'fixed', bottom: '28px', left: '50%', transform: 'translateX(-50%)', zIndex: 100, display: 'flex', alignItems: 'center', gap: '12px', background: 'rgba(0,18,36,0.97)', border: '1px solid rgba(0,212,255,0.4)', padding: '10px 20px', boxShadow: '0 0 30px rgba(0,212,255,0.15)' }}>
