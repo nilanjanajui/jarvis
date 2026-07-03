@@ -36,6 +36,7 @@ function Panel({ corner, width, title, onClose, children }) {
             animation: floatAnim,
             animationDelay: floatDelay,
             willChange: 'transform',
+            clipPath: 'polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px))',
         }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                 <span style={{ fontFamily: 'Orbitron', fontSize: '8px', letterSpacing: '0.18em', color: 'rgba(0,212,255,0.6)' }}>

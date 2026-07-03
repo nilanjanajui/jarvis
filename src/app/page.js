@@ -7,6 +7,7 @@ import BioMetrics from '@/components/BioMetrics';
 import AudioVisualizer from '@/components/AudioVisualizer';
 import CenterHUD from '@/components/CenterHUD';
 import SystemDrawer from '@/components/SystemDrawer';
+import BottomDock from '@/components/BottomDock';
 import { CalculatorPanel, TimerPanel, NotebookPanel } from '@/components/HudTools';
 import { DEFAULT_VOICE_ID } from '@/lib/voices';
 
@@ -642,68 +643,14 @@ System initialization complete. All core modules are online and operating within
                 ))}
               </div>
             )}
-
-            <button
-              onClick={() => setShowSystemDrawer((v) => !v)}
-              style={{
-                width: '100%',
-                fontFamily: 'Orbitron', fontSize: '11px', letterSpacing: '0.15em',
-                background: showSystemDrawer ? 'rgba(0,212,255,0.12)' : 'none',
-                border: `1px solid ${showSystemDrawer ? '#00d4ff' : 'rgba(0,212,255,0.25)'}`,
-                color: showSystemDrawer ? '#00d4ff' : 'rgba(0,212,255,0.55)',
-                padding: '10px 0', cursor: 'pointer', transition: 'all 0.2s',
-              }}
-            >
-              {showSystemDrawer ? '× CLOSE DIAGNOSTICS' : '☰ SYSTEM DIAGNOSTICS'}
-            </button>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
 
-            {/* Toggle buttons — panels layer on top, sphere stays visible always */}
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', padding: '10px 0' }}>
-              <button
-                onClick={() => setShowCalculator((v) => !v)}
-                style={{
-                  fontFamily: 'Orbitron', fontSize: '11px', letterSpacing: '0.15em',
-                  background: showCalculator ? 'rgba(0,212,255,0.12)' : 'none',
-                  border: `1px solid ${showCalculator ? '#00d4ff' : 'rgba(0,212,255,0.2)'}`,
-                  color: showCalculator ? '#00d4ff' : 'rgba(0,212,255,0.4)',
-                  padding: '5px 14px', cursor: 'pointer', transition: 'all 0.2s',
-                }}
-              >
-                CALC
-              </button>
-              <button
-                onClick={() => setShowTimerPanel((v) => !v)}
-                style={{
-                  fontFamily: 'Orbitron', fontSize: '11px', letterSpacing: '0.15em',
-                  background: showTimerPanel ? 'rgba(0,212,255,0.12)' : 'none',
-                  border: `1px solid ${showTimerPanel ? '#00d4ff' : 'rgba(0,212,255,0.2)'}`,
-                  color: showTimerPanel ? '#00d4ff' : 'rgba(0,212,255,0.4)',
-                  padding: '5px 14px', cursor: 'pointer', transition: 'all 0.2s',
-                }}
-              >
-                TIMER
-              </button>
-              <button
-                onClick={() => setShowNotebook((v) => !v)}
-                style={{
-                  fontFamily: 'Orbitron', fontSize: '11px', letterSpacing: '0.15em',
-                  background: showNotebook ? 'rgba(0,212,255,0.12)' : 'none',
-                  border: `1px solid ${showNotebook ? '#00d4ff' : 'rgba(0,212,255,0.2)'}`,
-                  color: showNotebook ? '#00d4ff' : 'rgba(0,212,255,0.4)',
-                  padding: '5px 14px', cursor: 'pointer', transition: 'all 0.2s',
-                }}
-              >
-                NOTES
-              </button>
-            </div>
-
             {/* Sphere always visible — panels float on top in corners */}
             <div
               onClick={handleMicClick}
-              style={{ flex: 1, cursor: !alwaysOn && status === 'idle' ? 'pointer' : 'default', position: 'relative' }}
+              style={{ flex: 1, cursor: !alwaysOn && status === 'idle' ? 'pointer' : 'default', position: 'relative', paddingBottom: '90px' }}
             >
               <CenterHUD status={status} transcript={transcript} streamingText={streamingText} />
               {!alwaysOn && status === 'idle' && (
@@ -736,6 +683,17 @@ System initialization complete. All core modules are online and operating within
         open={showSystemDrawer}
         onClose={() => setShowSystemDrawer(false)}
         extraLogLine={logLine}
+      />
+
+      <BottomDock
+        showCalculator={showCalculator}
+        onToggleCalculator={() => setShowCalculator((v) => !v)}
+        showTimerPanel={showTimerPanel}
+        onToggleTimerPanel={() => setShowTimerPanel((v) => !v)}
+        showNotebook={showNotebook}
+        onToggleNotebook={() => setShowNotebook((v) => !v)}
+        showSystemDrawer={showSystemDrawer}
+        onToggleSystemDrawer={() => setShowSystemDrawer((v) => !v)}
       />
 
       {pendingUrl && (
