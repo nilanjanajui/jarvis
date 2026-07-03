@@ -18,14 +18,6 @@ import { DEFAULT_VOICE_ID } from '@/lib/voices';
 
 const AGENT = 'http://localhost:5001';
 
-const PARTICLES = Array.from({ length: 25 }, () => ({
-  x: Math.random() * 100,
-  y: Math.random() * 100,
-  size: 1 + Math.random() * 1.5,
-  duration: 3 + Math.random() * 5,
-  delay: Math.random() * 5,
-  driftDur: 4 + Math.random() * 6,
-}));
 
 export default function JarvisPage() {
   const [status, setStatus] = useState('idle');
@@ -68,6 +60,23 @@ export default function JarvisPage() {
   const [showCalculator, setShowCalculator] = useState(false);
   const [showTimerPanel, setShowTimerPanel] = useState(false);
   const [showNotebook, setShowNotebook] = useState(false);
+  const [particles, setParticles] = useState([]);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setParticles(
+        Array.from({ length: 25 }, () => ({
+          x: Math.random() * 100,
+          y: Math.random() * 100,
+          size: 1 + Math.random() * 1.5,
+          duration: 3 + Math.random() * 5,
+          delay: Math.random() * 5,
+          driftDur: 4 + Math.random() * 6,
+        }))
+      );
+    }, 0);
+    return () => clearTimeout(t);
+  }, []);
 
   const recognitionRef = useRef(null);
   const recognitionRunning = useRef(false);
@@ -154,7 +163,10 @@ export default function JarvisPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ text, voiceId: voiceIdRef.current }),
         });
-        if (!res.ok) throw new Error(`ElevenLabs ${res.status}`);
+        if (!res.ok) {
+          const errBody = await res.json().catch(() => ({}));
+          throw new Error(`ElevenLabs ${res.status}: ${errBody.detail || 'unknown'}`);
+        }
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
         audioRef.current.src = url;
@@ -548,7 +560,7 @@ System initialization complete. All core modules are online and operating within
         <div className="jarvis-full-scan" />
 
         <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '900px', height: '900px', borderRadius: '50%', background: `radial-gradient(circle, ${statusColor}07 0%, transparent 65%)`, animation: 'pulse-glow 3s ease-in-out infinite', transition: 'background 1s' }} />
-        {PARTICLES.map((p, i) => (
+        {particles.map((p, i) => (
           <div key={i} style={{ position: 'absolute', left: `${p.x}%`, top: `${p.y}%`, width: `${p.size}px`, height: `${p.size}px`, borderRadius: '50%', background: '#00d4ff', animation: `float-particle ${p.duration}s ease-in-out ${p.delay}s infinite, drift-x ${p.driftDur}s ease-in-out ${p.delay}s infinite` }} />
         ))}
       </div>

@@ -32,8 +32,14 @@ export async function POST(req) {
 
     if (!res.ok) {
         const body = await res.text().catch(() => '');
-        console.error('[/api/speak] ElevenLabs error:', res.status, body);
-        return Response.json({ error: 'TTS failed' }, { status: 500 });
+        console.error('[/api/speak] ElevenLabs error:', res.status, 'voiceId:', VOICE_ID, body);
+        // Surface the real reason to the client for debugging
+        return Response.json({
+            error: 'TTS failed',
+            status: res.status,
+            voiceId: VOICE_ID,
+            detail: body,
+        }, { status: 500 });
     }
 
     const buffer = await res.arrayBuffer();
