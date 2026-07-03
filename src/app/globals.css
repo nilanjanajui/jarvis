@@ -80,11 +80,24 @@ html, body {
 /* HUD label */
 .hud-label {
   font-family: 'Orbitron', sans-serif;
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 0.15em;
   color: #00d4ff;
   text-transform: uppercase;
   margin-bottom: 10px;
+}
+
+/* Hero panels — Bio-Metrics + Audio Visualizer get visual priority over
+   everything demoted into the System Diagnostics drawer. Descendant
+   selectors so the components themselves don't need touching. */
+.hud-hero .hud-card {
+  border: 1px solid rgba(0, 212, 255, 0.45);
+  box-shadow: 0 0 28px rgba(0, 212, 255, 0.14), inset 0 0 24px rgba(0, 212, 255, 0.05);
+  padding: 20px;
+}
+.hud-hero .hud-label {
+  font-size: 12px;
+  letter-spacing: 0.18em;
 }
 
 /* Text glow */

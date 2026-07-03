@@ -3,16 +3,10 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import Navbar from '@/components/Navbar';
 import SettingsPanel from '@/components/SettingsPanel';
-import NeuralSync from '@/components/NeuralSync';
 import BioMetrics from '@/components/BioMetrics';
 import AudioVisualizer from '@/components/AudioVisualizer';
-import SystemLog from '@/components/SystemLog';
 import CenterHUD from '@/components/CenterHUD';
-import SystemTopology from '@/components/SystemTopology';
-import SatelliteLink from '@/components/SatelliteLink';
-import AtmosphericData from '@/components/AtmosphericData';
-import SecurityStatus from '@/components/SecurityStatus';
-import SystemTerminal from '@/components/SystemTerminal';
+import SystemDrawer from '@/components/SystemDrawer';
 import { CalculatorPanel, TimerPanel, NotebookPanel } from '@/components/HudTools';
 import { DEFAULT_VOICE_ID } from '@/lib/voices';
 
@@ -62,6 +56,7 @@ export default function JarvisPage() {
   const [showNotebook, setShowNotebook] = useState(false);
   const [particles, setParticles] = useState([]);
   const [activeNav, setActiveNav] = useState('DASHBOARD');
+  const [showSystemDrawer, setShowSystemDrawer] = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -630,20 +625,37 @@ System initialization complete. All core modules are online and operating within
         </div>
 
         {/* Layout */}
-        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '272px 1fr 272px', overflow: 'hidden', minHeight: 0 }}>
-          <div style={{ padding: '10px', overflowY: 'auto', borderRight: '1px solid rgba(0,212,255,0.07)' }}>
-            <NeuralSync />
-            <BioMetrics />
-            <AudioVisualizer />
-            <SystemLog extraLine={logLine} />
+        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '300px 1fr', overflow: 'hidden', minHeight: 0 }}>
+          <div style={{ padding: '14px', overflowY: 'auto', borderRight: '1px solid rgba(0,212,255,0.07)' }}>
+            <div className="hud-hero" style={{ marginBottom: '14px' }}>
+              <BioMetrics />
+            </div>
+            <div className="hud-hero" style={{ marginBottom: '14px' }}>
+              <AudioVisualizer />
+            </div>
+
             {activeTimers.length > 0 && (
-              <div className="hud-card" style={{ marginTop: '8px' }}>
+              <div className="hud-card" style={{ marginBottom: '14px' }}>
                 <div className="hud-label">Active Timers</div>
                 {activeTimers.map((t) => (
                   <TimerRow key={t.id} label={t.label} endsAt={t.endsAt} />
                 ))}
               </div>
             )}
+
+            <button
+              onClick={() => setShowSystemDrawer((v) => !v)}
+              style={{
+                width: '100%',
+                fontFamily: 'Orbitron', fontSize: '11px', letterSpacing: '0.15em',
+                background: showSystemDrawer ? 'rgba(0,212,255,0.12)' : 'none',
+                border: `1px solid ${showSystemDrawer ? '#00d4ff' : 'rgba(0,212,255,0.25)'}`,
+                color: showSystemDrawer ? '#00d4ff' : 'rgba(0,212,255,0.55)',
+                padding: '10px 0', cursor: 'pointer', transition: 'all 0.2s',
+              }}
+            >
+              {showSystemDrawer ? '× CLOSE DIAGNOSTICS' : '☰ SYSTEM DIAGNOSTICS'}
+            </button>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -717,16 +729,14 @@ System initialization complete. All core modules are online and operating within
               )}
             </div>
           </div>
-
-          <div style={{ padding: '10px', overflowY: 'auto', borderLeft: '1px solid rgba(0,212,255,0.07)' }}>
-            <SystemTopology />
-            <SatelliteLink />
-            <AtmosphericData />
-            <SecurityStatus />
-            <SystemTerminal />
-          </div>
         </div>
       </div>
+
+      <SystemDrawer
+        open={showSystemDrawer}
+        onClose={() => setShowSystemDrawer(false)}
+        extraLogLine={logLine}
+      />
 
       {pendingUrl && (
         <div style={{ position: 'fixed', bottom: '28px', left: '50%', transform: 'translateX(-50%)', zIndex: 100, display: 'flex', alignItems: 'center', gap: '12px', background: 'rgba(0,18,36,0.97)', border: '1px solid rgba(0,212,255,0.4)', padding: '10px 20px', boxShadow: '0 0 30px rgba(0,212,255,0.15)' }}>
