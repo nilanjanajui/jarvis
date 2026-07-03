@@ -65,7 +65,6 @@ export default function JarvisPage() {
   const alwaysOnRef = useRef(false);
   const elevenLabsOkRef = useRef(true);
   const handleSendRef = useRef(null);
-  const agentConnectedRef = useRef(false);
   const wakeUpRef = useRef(null);
   const userLocationRef = useRef(null);
 
@@ -79,11 +78,10 @@ export default function JarvisPage() {
     }
   }, [messages]);
   useEffect(() => { statusRef.current = status; }, [status]);
-  useEffect(() => { agentConnectedRef.current = agentConnected; }, [agentConnected]);
   useEffect(() => { elevenLabsOkRef.current = elevenLabsOk; }, [elevenLabsOk]);
   useEffect(() => { userLocationRef.current = userLocation; }, [userLocation]);
 
-  // ── Get browser location on mount ──────────────────────────────────────────
+  // ── Get browser location on mount — high accuracy to avoid IP-based mislocation ──
   useEffect(() => {
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
@@ -92,14 +90,14 @@ export default function JarvisPage() {
         setLogLine('Location acquired');
       },
       () => setLogLine('Location unavailable — permission denied'),
-      { timeout: 8000 }
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
   }, []);
 
   // ── Agent connection check (local only — agent.py runs on your PC, not Vercel) ─
   useEffect(() => {
     const isLocal = typeof window !== 'undefined' && window.location.hostname === 'localhost';
-    if (!isLocal) return; // already false by default, nothing to set
+    if (!isLocal) return;
 
     const check = () =>
       fetch(`${AGENT}/health`).then(() => setAgentConnected(true)).catch(() => setAgentConnected(false));
@@ -181,6 +179,7 @@ export default function JarvisPage() {
   // ── 2. executeAction ───────────────────────────────────────────────────────
   const executeAction = useCallback(async (action) => {
     if (!action) return;
+
     if (action.type === 'open_url') {
       const win = window.open(action.url, '_blank');
       if (!win || win.closed || typeof win.closed === 'undefined') {
@@ -194,7 +193,9 @@ export default function JarvisPage() {
       }
       return;
     }
-    if (action.type === 'app_launch' && agentConnected) {
+
+    // Fixed: backend sends type 'open_app', not 'app_launch'
+    if (action.type === 'open_app' && agentConnected) {
       const res = await fetch(`${AGENT}/execute`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -208,6 +209,7 @@ export default function JarvisPage() {
       }
       return;
     }
+
     if (action.type === 'volume' && agentConnected) {
       await fetch(`${AGENT}/volume`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -349,7 +351,9 @@ System initialization complete. All core modules are online and operating within
 
   useEffect(() => { wakeUpRef.current = wakeUp; }, [wakeUp]);
 
-  // ── 5. Speech recognition — created ONCE with empty deps ──────────────────
+  // ── 5. Speech recognition — created once. `speak` is stable via the useCallback
+  //      chain (its own deps safeStart/safeStop are both []), so this effect's
+  //      dependency on [speak] doesn't cause it to re-run in practice. ──────────
   useEffect(() => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) { console.warn('Use Chrome for voice support.'); return; }
@@ -430,7 +434,7 @@ System initialization complete. All core modules are online and operating within
 
     recognitionRef.current = r;
     return () => { listeningRef.current = false; try { r.abort(); } catch { } };
-  }, [speak]); // ← empty deps — created once
+  }, [speak]);
 
   // ── Toggle always-on ────────────────────────────────────────────────────────
   const toggleAlwaysOn = () => {
@@ -627,29 +631,34 @@ System initialization complete. All core modules are online and operating within
       )}
     </div>
   );
-  function TimerRow({ label, endsAt }) {
-    const [remaining, setRemaining] = useState(Math.max(0, endsAt - Date.now()));
-
-    useEffect(() => {
-      const t = setInterval(() => {
-        setRemaining(Math.max(0, endsAt - Date.now()));
-      }, 1000);
-      return () => clearInterval(t);
-    }, [endsAt]);
-
-    const mins = Math.floor(remaining / 60000);
-    const secs = Math.floor((remaining % 60000) / 1000);
-
-    return (
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-        <span style={{ fontFamily: 'Share Tech Mono', fontSize: '10px', color: 'rgba(0,212,255,0.7)' }}>
-          {label}
-        </span>
-        <span style={{ fontFamily: 'Orbitron', fontSize: '11px', color: '#00d4ff', fontWeight: '700' }}>
-          {mins}:{secs.toString().padStart(2, '0')}
-        </span>
-      </div>
-    );
-  }
 }
 
+// Moved outside JarvisPage to module scope. Previously declared after the
+// return statement inside JarvisPage — that caused a NEW function reference
+// on every JarvisPage render (which happens constantly during streaming),
+// which made React unmount/remount TimerRow each time, resetting its
+// countdown and restarting its interval. Declaring it here fixes that.
+function TimerRow({ label, endsAt }) {
+  const [remaining, setRemaining] = useState(() => Math.max(0, endsAt - Date.now()));
+
+  useEffect(() => {
+    const t = setInterval(() => {
+      setRemaining(Math.max(0, endsAt - Date.now()));
+    }, 1000);
+    return () => clearInterval(t);
+  }, [endsAt]);
+
+  const mins = Math.floor(remaining / 60000);
+  const secs = Math.floor((remaining % 60000) / 1000);
+
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+      <span style={{ fontFamily: 'Share Tech Mono', fontSize: '10px', color: 'rgba(0,212,255,0.7)' }}>
+        {label}
+      </span>
+      <span style={{ fontFamily: 'Orbitron', fontSize: '11px', color: '#00d4ff', fontWeight: '700' }}>
+        {mins}:{secs.toString().padStart(2, '0')}
+      </span>
+    </div>
+  );
+}
