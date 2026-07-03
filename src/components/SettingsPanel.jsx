@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { VOICES } from '@/lib/voices';
 
 export default function SettingsPanel({
     open,
@@ -9,6 +10,8 @@ export default function SettingsPanel({
     onToggleAlwaysOnDefault,
     onClearHistory,
     historyCount,
+    voiceId,
+    onVoiceChange,
 }) {
     const [keyStatus, setKeyStatus] = useState(null);
     const [keyStatusError, setKeyStatusError] = useState(false);
@@ -166,6 +169,35 @@ export default function SettingsPanel({
                 <div style={{ fontFamily: 'Share Tech Mono', fontSize: '8px', color: 'rgba(0,212,255,0.3)', marginTop: '8px', letterSpacing: '0.05em' }}>
                     Key values are never exposed to the browser — only whether each is configured on the server.
                 </div>
+
+                {/* Voice selection */}
+                <div style={{ marginTop: '20px' }}>
+                    <div className="hud-label">Voice</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        {VOICES.map((v) => (
+                            <button
+                                key={v.id}
+                                onClick={() => onVoiceChange(v.id)}
+                                style={{
+                                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                    fontFamily: 'Share Tech Mono', fontSize: '10px', letterSpacing: '0.05em',
+                                    background: voiceId === v.id ? 'rgba(0,212,255,0.12)' : 'rgba(0,10,20,0.4)',
+                                    border: `1px solid ${voiceId === v.id ? '#00d4ff' : 'rgba(0,212,255,0.2)'}`,
+                                    color: voiceId === v.id ? '#00d4ff' : 'rgba(0,212,255,0.55)',
+                                    padding: '8px 12px', cursor: 'pointer', textAlign: 'left', width: '100%',
+                                    transition: 'all 0.2s',
+                                }}
+                            >
+                                <span>
+                                    <strong>{v.name}</strong>
+                                    <span style={{ opacity: 0.6, marginLeft: '8px' }}>{v.description}</span>
+                                </span>
+                                {voiceId === v.id && <span style={{ color: '#22c55e' }}>●</span>}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
             </div>
         </div>
     );

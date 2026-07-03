@@ -1,12 +1,13 @@
+import { DEFAULT_VOICE_ID } from '@/lib/voices';
+
 export async function POST(req) {
-    const { text } = await req.json();
+    const { text, voiceId } = await req.json();
 
     if (!process.env.ELEVENLABS_API_KEY) {
         return Response.json({ error: 'No ElevenLabs key' }, { status: 400 });
     }
 
-    // "Adam" voice — deep and clear, closest to JARVIS
-    const VOICE_ID = 'pNInz6obpgDQGcFmaJgB';
+    const VOICE_ID = voiceId || DEFAULT_VOICE_ID;
 
     const res = await fetch(
         `https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`,
@@ -20,9 +21,9 @@ export async function POST(req) {
                 text,
                 model_id: 'eleven_multilingual_v2',
                 voice_settings: {
-                    stability: 0.35,          // lower = more expressive, natural variation
-                    similarity_boost: 0.82,   // truer to the voice character
-                    style: 0.40,              // more expressive delivery
+                    stability: 0.35,
+                    similarity_boost: 0.82,
+                    style: 0.40,
                     use_speaker_boost: true,
                 },
             }),

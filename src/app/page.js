@@ -14,6 +14,7 @@ import AtmosphericData from '@/components/AtmosphericData';
 import SecurityStatus from '@/components/SecurityStatus';
 import SystemTerminal from '@/components/SystemTerminal';
 import { CalculatorPanel, TimerPanel, NotebookPanel } from '@/components/HudTools';
+import { DEFAULT_VOICE_ID } from '@/lib/voices';
 
 const AGENT = 'http://localhost:5001';
 
@@ -55,6 +56,14 @@ export default function JarvisPage() {
       return false;
     }
   });
+  const [voiceId, setVoiceId] = useState(() => {
+    if (typeof window === 'undefined') return DEFAULT_VOICE_ID;
+    try {
+      return localStorage.getItem('jarvis-voice-id') || DEFAULT_VOICE_ID;
+    } catch {
+      return DEFAULT_VOICE_ID;
+    }
+  });
   const [activeTimers, setActiveTimers] = useState([]);
   const [showCalculator, setShowCalculator] = useState(false);
   const [showTimerPanel, setShowTimerPanel] = useState(false);
@@ -71,6 +80,7 @@ export default function JarvisPage() {
   const handleSendRef = useRef(null);
   const wakeUpRef = useRef(null);
   const userLocationRef = useRef(null);
+  const voiceIdRef = useRef(voiceId);
 
   useEffect(() => { messagesRef.current = messages; }, [messages]);
   useEffect(() => {
@@ -84,6 +94,7 @@ export default function JarvisPage() {
   useEffect(() => { statusRef.current = status; }, [status]);
   useEffect(() => { elevenLabsOkRef.current = elevenLabsOk; }, [elevenLabsOk]);
   useEffect(() => { userLocationRef.current = userLocation; }, [userLocation]);
+  useEffect(() => { voiceIdRef.current = voiceId; }, [voiceId]);
 
   // ── Get browser location on mount — high accuracy to avoid IP-based mislocation ──
   useEffect(() => {
@@ -141,7 +152,7 @@ export default function JarvisPage() {
         const res = await fetch('/api/speak', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text }),
+          body: JSON.stringify({ text, voiceId: voiceIdRef.current }),
         });
         if (!res.ok) throw new Error(`ElevenLabs ${res.status}`);
         const blob = await res.blob();
@@ -468,6 +479,19 @@ System initialization complete. All core modules are online and operating within
     });
   };
 
+  const changeVoice = (id) => {
+    setVoiceId(id);
+    try {
+      localStorage.setItem('jarvis-voice-id', id);
+    } catch (e) {
+      console.error('Failed to save voice choice:', e);
+    }
+    // A previously failed ElevenLabs call may have flipped this off —
+    // picking a new voice is a good moment to let it try again.
+    setElevenLabsOk(true);
+    elevenLabsOkRef.current = true;
+  };
+
   // ── Auto-activate always-on if enabled by default, once recognition is ready ──
   useEffect(() => {
     if (!alwaysOnDefault) return;
@@ -714,6 +738,8 @@ System initialization complete. All core modules are online and operating within
           onToggleAlwaysOnDefault={toggleAlwaysOnDefault}
           onClearHistory={clearHistory}
           historyCount={messages.length}
+          voiceId={voiceId}
+          onVoiceChange={changeVoice}
         />
       )}
     </div>
