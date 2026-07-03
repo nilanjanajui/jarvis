@@ -301,7 +301,7 @@ export default function JarvisPage() {
 
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split('\n');
-        buffer = lines.pop(); // keep incomplete trailing line for next chunk
+        buffer = lines.pop();
 
         for (const line of lines) {
           if (!line.trim()) continue;
@@ -383,7 +383,6 @@ System initialization complete. All core modules are online and operating within
 
       if (alwaysOnRef.current) {
 
-        // ── Sleep command ──
         if (
           (text.includes('sleep') && text.includes('jarvis')) ||
           (text.includes('goodbye') && text.includes('jarvis')) ||
@@ -398,19 +397,16 @@ System initialization complete. All core modules are online and operating within
           return;
         }
 
-        // ── Wake up command ──
         if (text.includes('wake up') && text.includes('jarvis')) {
           wakeUpRef.current?.();
           return;
         }
 
-        // ── Everything else is a direct command — no wake word needed ──
         if (raw.trim().length > 2) {
           handleSendRef.current?.(raw.trim());
         }
 
       } else {
-        // Click-to-talk mode
         if (statusRef.current === 'listening') {
           handleSendRef.current?.(raw);
         }
@@ -510,14 +506,37 @@ System initialization complete. All core modules are online and operating within
 
       {/* Animated Background */}
       <div style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none', overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(circle, rgba(0,212,255,0.18) 1px, transparent 1px)', backgroundSize: '38px 38px' }} />
+        {/* Hexagonal-ish tri-line grid instead of plain dots */}
+        <div style={{
+          position: 'absolute', inset: 0,
+          backgroundImage: `
+            linear-gradient(30deg, rgba(0,212,255,0.06) 1px, transparent 1px),
+            linear-gradient(150deg, rgba(0,212,255,0.06) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(0,212,255,0.06) 1px, transparent 1px)
+          `,
+          backgroundSize: '52px 90px',
+        }} />
+
         <div style={{ position: 'absolute', left: 0, right: 0, height: '1px', background: 'linear-gradient(90deg, transparent, rgba(0,212,255,0.35), transparent)', animation: 'scan-bg 5s linear infinite' }} />
         <div style={{ position: 'absolute', left: 0, right: 0, height: '1px', background: 'linear-gradient(90deg, transparent, rgba(0,212,255,0.2), transparent)', animation: 'scan-bg 9s linear infinite', animationDelay: '-4s' }} />
+
+        {/* Full-screen diagonal scan sweep */}
+        <div className="jarvis-full-scan" />
+
         <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '900px', height: '900px', borderRadius: '50%', background: `radial-gradient(circle, ${statusColor}07 0%, transparent 65%)`, animation: 'pulse-glow 3s ease-in-out infinite', transition: 'background 1s' }} />
         {PARTICLES.map((p, i) => (
           <div key={i} style={{ position: 'absolute', left: `${p.x}%`, top: `${p.y}%`, width: `${p.size}px`, height: `${p.size}px`, borderRadius: '50%', background: '#00d4ff', animation: `float-particle ${p.duration}s ease-in-out ${p.delay}s infinite, drift-x ${p.driftDur}s ease-in-out ${p.delay}s infinite` }} />
         ))}
       </div>
+
+      {/* Cinematic vignette — frames the whole screen like an HMD overlay */}
+      <div className="jarvis-vignette" />
+
+      {/* Corner HUD brackets — the classic Iron Man frame */}
+      <div className="jarvis-corner-bracket" style={{ top: 14, left: 14, borderTop: '2px solid', borderLeft: '2px solid' }} />
+      <div className="jarvis-corner-bracket" style={{ top: 14, right: 14, borderTop: '2px solid', borderRight: '2px solid' }} />
+      <div className="jarvis-corner-bracket" style={{ bottom: 14, left: 14, borderBottom: '2px solid', borderLeft: '2px solid' }} />
+      <div className="jarvis-corner-bracket" style={{ bottom: 14, right: 14, borderBottom: '2px solid', borderRight: '2px solid' }} />
 
       {/* App layer */}
       <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', height: '100vh' }}>

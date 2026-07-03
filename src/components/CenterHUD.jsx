@@ -33,7 +33,7 @@ export default function CenterHUD({ status, transcript, streamingText }) {
 
             {/* Background radial glow — intensifies when speaking */}
             <div style={{
-                position: 'absolute', width: '420px', height: '420px', borderRadius: '50%',
+                position: 'absolute', width: '460px', height: '460px', borderRadius: '50%',
                 background: `radial-gradient(circle, ${ringColor}${status === 'speaking' ? '12' : '06'} 0%, transparent 70%)`,
                 pointerEvents: 'none', transition: 'background 0.5s',
                 animation: 'pulse-glow 2.5s ease-in-out infinite',
@@ -57,7 +57,7 @@ export default function CenterHUD({ status, transcript, streamingText }) {
             )}
 
             {/* Main SVG HUD */}
-            <svg viewBox="0 0 500 500" style={{ position: 'absolute', width: '420px', height: '420px' }} xmlns="http://www.w3.org/2000/svg">
+            <svg viewBox="0 0 500 500" style={{ position: 'absolute', width: '460px', height: '460px' }} xmlns="http://www.w3.org/2000/svg">
                 <defs>
                     <radialGradient id="sphereG" cx="38%" cy="32%">
                         <stop offset="0%" stopColor="#5efff9" />
@@ -77,6 +77,22 @@ export default function CenterHUD({ status, transcript, streamingText }) {
                 {/* Outermost dashed ring */}
                 <circle cx="250" cy="250" r="235" fill="none" stroke={ringColor} strokeWidth="0.8" strokeDasharray="3 9" opacity="0.35"
                     style={{ transformOrigin: '250px 250px', animation: 'spin 30s linear infinite', transition: 'stroke 0.5s' }} />
+
+                {/* Degree tick ring — the classic HUD detail, slow independent rotation */}
+                <g style={{ transformOrigin: '250px 250px', animation: 'spin 45s linear infinite' }}>
+                    {Array.from({ length: 24 }).map((_, i) => {
+                        const deg = i * 15;
+                        const rad = (deg * Math.PI) / 180;
+                        const isMajor = deg % 45 === 0;
+                        const r1 = 224, r2 = isMajor ? 213 : 218;
+                        const x1 = 250 + r1 * Math.cos(rad), y1 = 250 + r1 * Math.sin(rad);
+                        const x2 = 250 + r2 * Math.cos(rad), y2 = 250 + r2 * Math.sin(rad);
+                        return (
+                            <line key={i} x1={x1} y1={y1} x2={x2} y2={y2}
+                                stroke={ringColor} strokeWidth={isMajor ? 1.2 : 0.5} opacity="0.45" />
+                        );
+                    })}
+                </g>
 
                 {/* Outer solid ring */}
                 <circle cx="250" cy="250" r="210" fill="none" stroke={ringColor} strokeWidth="1" opacity="0.2"
@@ -108,6 +124,12 @@ export default function CenterHUD({ status, transcript, streamingText }) {
                 <line x1="15" y1="250" x2="40" y2="250" stroke={ringColor} strokeWidth="2" opacity="0.7" />
                 <line x1="460" y1="250" x2="485" y2="250" stroke={ringColor} strokeWidth="2" opacity="0.7" />
 
+                {/* Readout labels — classic HUD coordinate detail */}
+                <text x="250" y="28" textAnchor="middle" fill={ringColor} opacity="0.5" fontSize="9" fontFamily="Share Tech Mono">N · 000°</text>
+                <text x="475" y="254" textAnchor="middle" fill={ringColor} opacity="0.5" fontSize="9" fontFamily="Share Tech Mono">E · 090°</text>
+                <text x="250" y="480" textAnchor="middle" fill={ringColor} opacity="0.5" fontSize="9" fontFamily="Share Tech Mono">S · 180°</text>
+                <text x="25" y="254" textAnchor="middle" fill={ringColor} opacity="0.5" fontSize="9" fontFamily="Share Tech Mono">W · 270°</text>
+
                 {/* Pulsing glow behind sphere */}
                 <circle cx="250" cy="250" r="95" fill="url(#glowG)"
                     style={{ animation: `pulse-glow ${status === 'speaking' ? '0.8s' : '2.5s'} ease-in-out infinite` }} />
@@ -134,7 +156,7 @@ export default function CenterHUD({ status, transcript, streamingText }) {
                 <div className="text-glow" style={{ fontFamily: 'Orbitron', fontSize: '15px', fontWeight: '700', letterSpacing: '0.25em', color: '#00d4ff', marginBottom: '8px' }}>
                     {greeting}, SIR
                 </div>
-                <div style={{
+                <div className="jarvis-live-data" style={{
                     fontFamily: 'Share Tech Mono', fontSize: '11px',
                     color: status === 'speaking' ? ringColor : 'rgba(0,212,255,0.55)',
                     letterSpacing: '0.1em',
