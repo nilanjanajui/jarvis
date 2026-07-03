@@ -13,6 +13,7 @@ import SatelliteLink from '@/components/SatelliteLink';
 import AtmosphericData from '@/components/AtmosphericData';
 import SecurityStatus from '@/components/SecurityStatus';
 import SystemTerminal from '@/components/SystemTerminal';
+import HudTools from '@/components/HudTools';
 
 const AGENT = 'http://localhost:5001';
 
@@ -55,6 +56,7 @@ export default function JarvisPage() {
     }
   });
   const [activeTimers, setActiveTimers] = useState([]);
+  const [hudMode, setHudMode] = useState('sphere');
 
   const recognitionRef = useRef(null);
   const recognitionRunning = useRef(false);
@@ -177,15 +179,28 @@ export default function JarvisPage() {
   }, [safeStart, safeStop]);
 
   // ── 2. executeAction ───────────────────────────────────────────────────────
+  const startTimer = useCallback((seconds, label) => {
+    const id = Date.now();
+    const endsAt = Date.now() + seconds * 1000;
+    setActiveTimers((prev) => [...prev, { id, label, endsAt }]);
+    setLogLine(`Timer started: ${label} (${seconds}s)`);
+    setHudMode('timer');
+
+    setTimeout(() => {
+      setActiveTimers((prev) => prev.filter((t) => t.id !== id));
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('J.A.R.V.I.S. — Timer Complete', { body: `${label} timer is done, sir.` });
+      }
+      speak(`Timer complete, sir. ${label} is done.`);
+    }, seconds * 1000);
+  }, [speak]);
+
   const executeAction = useCallback(async (action) => {
     if (!action) return;
 
     if (action.type === 'open_url') {
       const win = window.open(action.url, '_blank');
       if (!win || win.closed || typeof win.closed === 'undefined') {
-        // Popup blocked (common when this fires from a voice/async callback
-        // rather than a direct click) — fall back to a one-tap confirmation
-        // banner, since a real click is a user gesture the browser allows.
         setPendingUrl({ url: action.url, name: action.site_name || action.url });
         setLogLine(`Popup blocked — confirm to open ${action.site_name}`);
       } else {
@@ -194,7 +209,6 @@ export default function JarvisPage() {
       return;
     }
 
-    // Fixed: backend sends type 'open_app', not 'app_launch'
     if (action.type === 'open_app' && agentConnected) {
       const res = await fetch(`${AGENT}/execute`, {
         method: 'POST',
@@ -220,18 +234,7 @@ export default function JarvisPage() {
     }
 
     if (action.type === 'timer') {
-      const id = Date.now();
-      const endsAt = Date.now() + action.seconds * 1000;
-      setActiveTimers((prev) => [...prev, { id, label: action.label, endsAt }]);
-      setLogLine(`Timer started: ${action.label} (${action.seconds}s)`);
-
-      setTimeout(() => {
-        setActiveTimers((prev) => prev.filter((t) => t.id !== id));
-        if ('Notification' in window && Notification.permission === 'granted') {
-          new Notification('J.A.R.V.I.S. — Timer Complete', { body: `${action.label} timer is done, sir.` });
-        }
-        speak(`Timer complete, sir. ${action.label} is done.`);
-      }, action.seconds * 1000);
+      startTimer(action.seconds, action.label);
       return;
     }
 
@@ -239,12 +242,12 @@ export default function JarvisPage() {
       setLogLine(`Reminder set: "${action.message}" in ${action.seconds}s`);
       setTimeout(() => {
         if ('Notification' in window && Notification.permission === 'granted') {
-          new Notification('J.A.R.V.I.S. — Reminder', { body: action.message });
+          new Notification('J.A.R.V.I.S. - Reminder', { body: action.message });
         }
         speak(`Reminder, sir: ${action.message}`);
       }, action.seconds * 1000);
     }
-  }, [agentConnected, speak]);
+  }, [agentConnected, speak, startTimer]);
 
   const requestNotificationPermission = useCallback(() => {
     if ('Notification' in window && Notification.permission === 'default') {
@@ -580,13 +583,50 @@ System initialization complete. All core modules are online and operating within
             )}
           </div>
 
-          <div onClick={handleMicClick} style={{ cursor: alwaysOn || status !== 'idle' ? 'default' : 'pointer', position: 'relative' }}>
-            <CenterHUD status={status} transcript={transcript} streamingText={streamingText} />
-            {!alwaysOn && status === 'idle' && (
-              <div style={{ position: 'absolute', bottom: '6%', left: '50%', transform: 'translateX(-50%)', fontFamily: 'Orbitron', fontSize: '7px', letterSpacing: '0.2em', color: 'rgba(0,212,255,0.25)' }}>
-                CLICK TO ACTIVATE
-              </div>
-            )}
+          <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+
+            {/* Mode tabs */}
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', padding: '10px 0' }}>
+              {[
+                { key: 'sphere', label: 'JARVIS' },
+                { key: 'calculator', label: 'CALC' },
+                { key: 'timer', label: 'TIMER' },
+                { key: 'notebook', label: 'NOTES' },
+              ].map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => setHudMode(tab.key)}
+                  style={{
+                    fontFamily: 'Orbitron', fontSize: '9px', letterSpacing: '0.15em',
+                    background: hudMode === tab.key ? 'rgba(0,212,255,0.12)' : 'none',
+                    border: `1px solid ${hudMode === tab.key ? '#00d4ff' : 'rgba(0,212,255,0.2)'}`,
+                    color: hudMode === tab.key ? '#00d4ff' : 'rgba(0,212,255,0.4)',
+                    padding: '5px 14px', cursor: 'pointer', transition: 'all 0.2s',
+                  }}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Content area */}
+            <div
+              onClick={hudMode === 'sphere' ? handleMicClick : undefined}
+              style={{ flex: 1, cursor: hudMode === 'sphere' && !alwaysOn && status === 'idle' ? 'pointer' : 'default', position: 'relative' }}
+            >
+              {hudMode === 'sphere' ? (
+                <>
+                  <CenterHUD status={status} transcript={transcript} streamingText={streamingText} />
+                  {!alwaysOn && status === 'idle' && (
+                    <div style={{ position: 'absolute', bottom: '6%', left: '50%', transform: 'translateX(-50%)', fontFamily: 'Orbitron', fontSize: '7px', letterSpacing: '0.2em', color: 'rgba(0,212,255,0.25)' }}>
+                      CLICK TO ACTIVATE
+                    </div>
+                  )}
+                </>
+              ) : (
+                <HudTools mode={hudMode} activeTimers={activeTimers} onAddTimer={startTimer} />
+              )}
+            </div>
           </div>
 
           <div style={{ padding: '10px', overflowY: 'auto', borderLeft: '1px solid rgba(0,212,255,0.07)' }}>
