@@ -116,7 +116,8 @@ export default function CenterHUD({ status, transcript, streamingText, bootProgr
                 </g>
 
                 {/* Outer solid ring */}
-                <circle cx="250" cy="250" r="205" fill="none" stroke={ringColor} strokeWidth="1" opacity="0.25" />
+                <circle cx="250" cy="250" r="205" fill="none" stroke={ringColor} strokeWidth="1" opacity="0.25"
+                    style={{ transformOrigin: '250px 250px', animation: 'spin 45s linear infinite reverse' }} />
 
                 {/* Mid dashed ring — reverses */}
                 <circle cx="250" cy="250" r="172" fill="none" stroke={ringColor} strokeWidth="0.8" strokeDasharray="2 6" opacity="0.35"
@@ -133,7 +134,8 @@ export default function CenterHUD({ status, transcript, streamingText, bootProgr
                 </g>
 
                 {/* Inner ring */}
-                <circle cx="250" cy="250" r="140" fill="none" stroke={ringColor} strokeWidth="1.2" opacity="0.5" />
+                <circle cx="250" cy="250" r="140" fill="none" stroke={ringColor} strokeWidth="1.2" opacity="0.5"
+                    style={{ transformOrigin: '250px 250px', animation: 'spin 60s linear infinite' }} />
 
                 {/* Scanning sweep */}
                 {scanPath && (
