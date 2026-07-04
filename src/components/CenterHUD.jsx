@@ -145,9 +145,9 @@ export default function CenterHUD({ status, transcript, streamingText }) {
 
                 {/* Readout labels — classic HUD coordinate detail */}
                 <text x="250" y="28" textAnchor="middle" fill={ringColor} opacity="0.5" fontSize="9" fontFamily="Share Tech Mono">N · 000°</text>
-                <text x="475" y="254" textAnchor="middle" fill={ringColor} opacity="0.5" fontSize="9" fontFamily="Share Tech Mono">E · 090°</text>
+                <text x="475" y="254" textAnchor="middle" fill="#ffb340" opacity="0.45" fontSize="9" fontFamily="Share Tech Mono">E · 090°</text>
                 <text x="250" y="480" textAnchor="middle" fill={ringColor} opacity="0.5" fontSize="9" fontFamily="Share Tech Mono">S · 180°</text>
-                <text x="25" y="254" textAnchor="middle" fill={ringColor} opacity="0.5" fontSize="9" fontFamily="Share Tech Mono">W · 270°</text>
+                <text x="25" y="254" textAnchor="middle" fill="#ffb340" opacity="0.45" fontSize="9" fontFamily="Share Tech Mono">W · 270°</text>
 
                 {/* Pulsing glow behind sphere */}
                 <circle cx="250" cy="250" r="95" fill="url(#glowG)"

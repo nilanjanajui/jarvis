@@ -543,14 +543,14 @@ System initialization complete. All core modules are online and operating within
 
       {/* Animated Background */}
       <div style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none', overflow: 'hidden' }}>
-        {/* Hexagonal-ish tri-line grid instead of plain dots */}
-        <div style={{
+        {/* Hexagonal-ish tri-line grid — soft focus, sits behind everything */}
+        <div className="jarvis-depth-blur" style={{
           position: 'absolute', inset: 0,
           backgroundImage: `
-            linear-gradient(30deg, rgba(0,212,255,0.06) 1px, transparent 1px),
-            linear-gradient(150deg, rgba(0,212,255,0.06) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(0,212,255,0.06) 1px, transparent 1px)
-          `,
+      linear-gradient(30deg, rgba(0,212,255,0.06) 1px, transparent 1px),
+      linear-gradient(150deg, rgba(0,212,255,0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,0.06) 1px, transparent 1px)
+    `,
           backgroundSize: '52px 90px',
         }} />
 
@@ -562,7 +562,7 @@ System initialization complete. All core modules are online and operating within
 
         <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '900px', height: '900px', borderRadius: '50%', background: `radial-gradient(circle, ${statusColor}07 0%, transparent 65%)`, animation: 'pulse-glow 3s ease-in-out infinite', transition: 'background 1s' }} />
         {particles.map((p, i) => (
-          <div key={i} style={{ position: 'absolute', left: `${p.x}%`, top: `${p.y}%`, width: `${p.size}px`, height: `${p.size}px`, borderRadius: '50%', background: '#00d4ff', animation: `float-particle ${p.duration}s ease-in-out ${p.delay}s infinite, drift-x ${p.driftDur}s ease-in-out ${p.delay}s infinite` }} />
+          <div key={i} className="jarvis-depth-blur" style={{ position: 'absolute', left: `${p.x}%`, top: `${p.y}%`, width: `${p.size}px`, height: `${p.size}px`, borderRadius: '50%', background: '#00d4ff', animation: `float-particle ${p.duration}s ease-in-out ${p.delay}s infinite, drift-x ${p.driftDur}s ease-in-out ${p.delay}s infinite` }} />
         ))}
       </div>
 

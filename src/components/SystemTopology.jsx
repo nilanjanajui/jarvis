@@ -45,7 +45,7 @@ export default function SystemTopology() {
             </div>
             <div style={{ background: 'rgba(0,10,20,0.5)', padding: '8px', position: 'relative', overflow: 'hidden' }}>
                 <div style={{ position: 'absolute', left: 0, right: 0, height: '1px', background: 'linear-gradient(90deg,transparent,rgba(0,212,255,0.4),transparent)', animation: 'scan-line 3s linear infinite' }} />
-                <svg viewBox={`0 0 ${W} ${H + 20}`} width="100%" style={{ display: 'block' }}>
+                <svg viewBox={`0 0 ${W} ${H + 20}`} width="100%" style={{ display: 'block', filter: 'blur(0.4px)', opacity: 0.9 }}>
                     {lines.map((d, i) => <path key={i} d={d} fill="none" stroke="#00d4ff" strokeWidth="0.7" opacity="0.4" />)}
                     {pts.map((p, i) => <circle key={i} cx={p.x} cy={p.y} r="1.2" fill="#00d4ff" opacity="0.6" />)}
                 </svg>

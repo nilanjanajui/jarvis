@@ -95,9 +95,9 @@ export default function SatelliteLink() {
                 <div style={{
                     height: '100%',
                     width: `${(latency / 30) * 100}%`,
-                    background: 'linear-gradient(90deg,#00d4ff,#00a8cc)',
+                    background: latency > 20 ? 'linear-gradient(90deg,#ffb340,#ff8c1a)' : 'linear-gradient(90deg,#00d4ff,#00a8cc)',
                     borderRadius: '2px',
-                    transition: 'width 0.5s',
+                    transition: 'width 0.5s, background 0.4s',
                 }} />
             </div>
         </div>
