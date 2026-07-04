@@ -148,11 +148,14 @@ export default function JarvisPage() {
   // ── 1. speak ───────────────────────────────────────────────────────────────
   const speak = useCallback(async (text) => {
     const resumeListening = () => {
-      setStatus('idle');
-      if (alwaysOnRef.current) {
-        listeningRef.current = true;
-        setTimeout(safeStart, 500);
-      }
+      setStatus('success');
+      setTimeout(() => {
+        setStatus('idle');
+        if (alwaysOnRef.current) {
+          listeningRef.current = true;
+          setTimeout(safeStart, 500);
+        }
+      }, 1000);
     };
 
     setStatus('speaking');
@@ -352,13 +355,16 @@ export default function JarvisPage() {
 
     } catch (e) {
       console.error('handleSend error:', e);
-      setStatus('idle');
+      setStatus('error');
       setStreamingText('');
       setLogLine('Error: request failed');
-      if (alwaysOnRef.current) {
-        listeningRef.current = true;
-        setTimeout(safeStart, 500);
-      }
+      setTimeout(() => {
+        setStatus('idle');
+        if (alwaysOnRef.current) {
+          listeningRef.current = true;
+          setTimeout(safeStart, 500);
+        }
+      }, 1500);
     }
   }, [executeAction, speak, safeStart]);
 
@@ -557,6 +563,8 @@ System initialization complete. All core modules are online and operating within
     thinking: '#f59e0b',
     speaking: '#a855f7',
     booting: '#00d4ff',
+    success: '#22c55e',
+    error: '#ef4444',
   }[status] || '#00d4ff';
 
   return (
