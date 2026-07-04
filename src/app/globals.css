@@ -545,3 +545,8 @@ body {
 .jarvis-blob-1 { animation: blob-drift-1 5.5s ease-in-out infinite; }
 .jarvis-blob-2 { animation: blob-drift-2 7.2s ease-in-out infinite; animation-delay: -2.1s; }
 .jarvis-blob-3 { animation: blob-drift-3 4.3s ease-in-out infinite; animation-delay: -1.4s; }
+
+@keyframes core-scale {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.03); }
+}
