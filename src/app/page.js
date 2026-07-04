@@ -15,6 +15,7 @@ import SecurityStatus from '@/components/SecurityStatus';
 import SystemTerminal from '@/components/SystemTerminal';
 import { CalculatorPanel, TimerPanel, NotebookPanel } from '@/components/HudTools';
 import { DEFAULT_VOICE_ID } from '@/lib/voices';
+import { playBootSound } from '@/lib/bootSound';
 
 const AGENT = 'http://localhost:5001';
 
@@ -62,6 +63,7 @@ export default function JarvisPage() {
   const [showNotebook, setShowNotebook] = useState(false);
   const [particles, setParticles] = useState([]);
   const [activeNav, setActiveNav] = useState('DASHBOARD');
+  const [bootProgress, setBootProgress] = useState(0);
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -370,12 +372,30 @@ export default function JarvisPage() {
         h < 17 ? 'Good afternoon' :
           h < 21 ? 'Good evening' : 'Good night';
 
+    // Play mechanical boot sound and show the boot HUD state
+    const duration = playBootSound();
+    setStatus('booting');
+    setLogLine('Power-on sequence initiated...');
+    setBootProgress(0);
+
+    // Animate the progress ring/bar over the boot duration
+    const steps = 20;
+    const stepTime = duration / steps;
+    let step = 0;
+    const progressInterval = setInterval(() => {
+      step++;
+      setBootProgress(Math.min(100, (step / steps) * 100));
+      if (step >= steps) clearInterval(progressInterval);
+    }, stepTime);
+
     const intro = `${timeGreet}, sir.
 System initialization complete. All core modules are online and operating within normal parameters. Voice authentication successful. I am JARVIS, your intelligent assistant. I am prepared to analyze information, automate tasks, monitor your systems, and assist you with your objectives. Awaiting your command.`;
 
-    setStatus('listening');
-    setLogLine('Wake sequence initiated — all systems online');
-    setTimeout(() => speak(intro), 300);
+    setTimeout(() => {
+      setStatus('listening');
+      setLogLine('Wake sequence initiated — all systems online');
+      speak(intro);
+    }, duration);
   }, [speak]);
 
   useEffect(() => { wakeUpRef.current = wakeUp; }, [wakeUp]);
@@ -536,6 +556,7 @@ System initialization complete. All core modules are online and operating within
     listening: '#22c55e',
     thinking: '#f59e0b',
     speaking: '#a855f7',
+    booting: '#00d4ff',
   }[status] || '#00d4ff';
 
   return (
@@ -694,7 +715,7 @@ System initialization complete. All core modules are online and operating within
               onClick={handleMicClick}
               style={{ flex: 1, cursor: !alwaysOn && status === 'idle' ? 'pointer' : 'default', position: 'relative' }}
             >
-              <CenterHUD status={status} transcript={transcript} streamingText={streamingText} />
+              <CenterHUD status={status} transcript={transcript} streamingText={streamingText} bootProgress={bootProgress} />
               {!alwaysOn && status === 'idle' && (
                 <div style={{ position: 'absolute', bottom: '6%', left: '50%', transform: 'translateX(-50%)', fontFamily: 'Orbitron', fontSize: '10px', letterSpacing: '0.2em', color: 'rgba(0,212,255,0.4)' }}>
                   CLICK TO ACTIVATE
