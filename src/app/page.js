@@ -539,7 +539,7 @@ System initialization complete. All core modules are online and operating within
   }[status] || '#00d4ff';
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#060b14', overflow: 'hidden', position: 'relative' }}>
+    <div className="jarvis-app-root" style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#060b14', overflow: 'hidden', position: 'relative' }}>
 
       {/* Animated Background */}
       <div style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none', overflow: 'hidden' }}>
@@ -585,7 +585,7 @@ System initialization complete. All core modules are online and operating within
         />
 
         {/* Status bar */}
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '14px', padding: '4px 0', borderBottom: '1px solid rgba(0,212,255,0.06)', background: 'rgba(0,5,12,0.88)', flexWrap: 'wrap' }}>
+        <div className="jarvis-status-bar" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '14px', padding: '4px 0', borderBottom: '1px solid rgba(0,212,255,0.06)', background: 'rgba(0,5,12,0.88)', flexWrap: 'wrap' }}>
           <span style={{ fontFamily: 'Share Tech Mono', fontSize: '11px', color: agentConnected ? '#22c55e' : 'rgba(0,212,255,0.3)', letterSpacing: '0.1em' }}>
             {agentConnected ? '● AGENT ONLINE' : '○ AGENT OFFLINE'}
           </span>
@@ -630,8 +630,8 @@ System initialization complete. All core modules are online and operating within
         </div>
 
         {/* Layout */}
-        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '272px 1fr 272px', overflow: 'hidden', minHeight: 0 }}>
-          <div style={{ padding: '10px', overflowY: 'auto', borderRight: '1px solid rgba(0,212,255,0.07)' }}>
+        <div className="jarvis-main-grid" style={{ flex: 1 }}>
+          <div className="jarvis-panel-left">
             <NeuralSync />
             <BioMetrics />
             <AudioVisualizer />
@@ -646,10 +646,11 @@ System initialization complete. All core modules are online and operating within
             )}
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+
+          <div className="jarvis-panel-center">
 
             {/* Toggle buttons — panels layer on top, sphere stays visible always */}
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', padding: '10px 0' }}>
+            <div className="jarvis-tool-toggles" style={{ display: 'flex', justifyContent: 'center', gap: '8px', padding: '10px 0' }}>
               <button
                 onClick={() => setShowCalculator((v) => !v)}
                 style={{
@@ -718,7 +719,7 @@ System initialization complete. All core modules are online and operating within
             </div>
           </div>
 
-          <div style={{ padding: '10px', overflowY: 'auto', borderLeft: '1px solid rgba(0,212,255,0.07)' }}>
+          <div className="jarvis-panel-right" style={{ padding: '10px', overflowY: 'auto', borderLeft: '1px solid rgba(0,212,255,0.07)' }}>
             <SystemTopology />
             <SatelliteLink />
             <AtmosphericData />

@@ -195,3 +195,85 @@ html, body {
   99%           { opacity: 0.5; }
 }
 .jarvis-live-data { animation: data-flicker 6s ease-in-out infinite; }
+
+/* ── Responsive Layout ─────────────────────────────────────────────────────── */
+
+.jarvis-main-grid {
+  display: grid;
+  grid-template-columns: 272px 1fr 272px;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.jarvis-panel-left,
+.jarvis-panel-right {
+  padding: 10px;
+  overflow-y: auto;
+}
+.jarvis-panel-left  { border-right: 1px solid rgba(0,212,255,0.07); }
+.jarvis-panel-right { border-left: 1px solid rgba(0,212,255,0.07); }
+
+.jarvis-panel-center {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* Mobile: stack vertically, center HUD first, panels scroll below */
+@media (max-width: 860px) {
+  .jarvis-main-grid {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    height: 100%;
+  }
+
+  .jarvis-panel-center {
+    order: 1;
+    min-height: 420px;
+    flex-shrink: 0;
+  }
+
+  .jarvis-panel-left {
+    order: 2;
+    border-right: none;
+    border-top: 1px solid rgba(0,212,255,0.07);
+    overflow-y: visible;
+  }
+
+  .jarvis-panel-right {
+    order: 3;
+    border-left: none;
+    border-top: 1px solid rgba(0,212,255,0.07);
+    overflow-y: visible;
+  }
+
+  /* Corner brackets get in the way of scrolling content on mobile — hide them */
+  .jarvis-corner-bracket {
+    display: none;
+  }
+
+  /* Status bar wraps awkwardly on narrow screens — tighten it up */
+  .jarvis-status-bar {
+    font-size: 8px !important;
+    gap: 8px !important;
+    padding: 6px 8px !important;
+  }
+}
+
+/* Extra narrow phones — shrink the sphere a bit further via CenterHUD's own sizing is fine,
+   but tighten toggle buttons above it */
+@media (max-width: 420px) {
+  .jarvis-tool-toggles button {
+    padding: 4px 8px !important;
+    font-size: 8px !important;
+  }
+}
+
+@media (max-width: 860px) {
+  .jarvis-app-root {
+    height: auto;
+    min-height: 100vh;
+    overflow: visible !important;
+  }
+}
