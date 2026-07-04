@@ -15,7 +15,14 @@ import SecurityStatus from '@/components/SecurityStatus';
 import SystemTerminal from '@/components/SystemTerminal';
 import { CalculatorPanel, TimerPanel, NotebookPanel } from '@/components/HudTools';
 import { DEFAULT_VOICE_ID } from '@/lib/voices';
-import { playBootSound } from '@/lib/bootSound';
+import {
+  playClick,
+  playBlip,
+  playAccessGranted,
+  playAccessDenied,
+  playGlitch,
+  playBootSound as playBootSoundLib,
+} from '@/lib/hudSounds';
 
 const AGENT = 'http://localhost:5001';
 
@@ -149,6 +156,7 @@ export default function JarvisPage() {
   const speak = useCallback(async (text) => {
     const resumeListening = () => {
       setStatus('success');
+      playAccessGranted();
       setTimeout(() => {
         setStatus('idle');
         if (alwaysOnRef.current) {
@@ -294,6 +302,7 @@ export default function JarvisPage() {
     if (statusRef.current === 'thinking' || statusRef.current === 'speaking') return;
 
     setStatus('thinking');
+    playGlitch();
     setTranscript('');
     setStreamingText('');
     const history = [...messagesRef.current, { role: 'user', content: text.trim() }];
@@ -356,6 +365,7 @@ export default function JarvisPage() {
     } catch (e) {
       console.error('handleSend error:', e);
       setStatus('error');
+      playAccessDenied();
       setStreamingText('');
       setLogLine('Error: request failed');
       setTimeout(() => {
@@ -379,7 +389,7 @@ export default function JarvisPage() {
           h < 21 ? 'Good evening' : 'Good night';
 
     // Play mechanical boot sound and show the boot HUD state
-    const duration = playBootSound();
+    const duration = playBootSoundLib();
     setStatus('booting');
     setLogLine('Power-on sequence initiated...');
     setBootProgress(0);
@@ -489,6 +499,7 @@ System initialization complete. All core modules are online and operating within
 
   // ── Toggle always-on ────────────────────────────────────────────────────────
   const toggleAlwaysOn = () => {
+    playBlip();
     const next = !alwaysOn;
     setAlwaysOn(next);
     alwaysOnRef.current = next;
@@ -553,6 +564,7 @@ System initialization complete. All core modules are online and operating within
 
   const handleMicClick = () => {
     if (alwaysOn || status !== 'idle') return;
+    playClick();
     setStatus('listening');
     safeStart();
   };
@@ -609,7 +621,7 @@ System initialization complete. All core modules are online and operating within
         <Navbar
           activeItem={activeNav}
           onNavigate={setActiveNav}
-          onSettingsClick={() => { setSettingsOpenSeq((n) => n + 1); setShowSettings(true); setActiveNav('SETTINGS'); }}
+          onSettingsClick={() => { playClick(); setSettingsOpenSeq((n) => n + 1); setShowSettings(true); setActiveNav('SETTINGS'); }}
           settingsOpen={showSettings}
         />
 
@@ -645,7 +657,7 @@ System initialization complete. All core modules are online and operating within
             <>
               <span style={{ color: 'rgba(0,212,255,0.2)' }}>|</span>
               <button
-                onClick={clearHistory}
+                onClick={() => { playClick(); clearHistory(); }}
                 style={{
                   fontFamily: 'Share Tech Mono', fontSize: '11px', letterSpacing: '0.1em',
                   background: 'none', border: '1px solid rgba(239,68,68,0.3)',
@@ -681,7 +693,7 @@ System initialization complete. All core modules are online and operating within
             {/* Toggle buttons — panels layer on top, sphere stays visible always */}
             <div className="jarvis-tool-toggles" style={{ display: 'flex', justifyContent: 'center', gap: '8px', padding: '10px 0' }}>
               <button
-                onClick={() => setShowCalculator((v) => !v)}
+                onClick={() => { playClick(); setShowCalculator((v) => !v); }}
                 style={{
                   fontFamily: 'Orbitron', fontSize: '11px', letterSpacing: '0.15em',
                   background: showCalculator ? 'rgba(0,212,255,0.12)' : 'none',
@@ -693,7 +705,7 @@ System initialization complete. All core modules are online and operating within
                 CALC
               </button>
               <button
-                onClick={() => setShowTimerPanel((v) => !v)}
+                onClick={() => { playClick(); setShowTimerPanel((v) => !v); }}
                 style={{
                   fontFamily: 'Orbitron', fontSize: '11px', letterSpacing: '0.15em',
                   background: showTimerPanel ? 'rgba(0,212,255,0.12)' : 'none',
@@ -705,7 +717,7 @@ System initialization complete. All core modules are online and operating within
                 TIMER
               </button>
               <button
-                onClick={() => setShowNotebook((v) => !v)}
+                onClick={() => { playClick(); setShowNotebook((v) => !v); }}
                 style={{
                   fontFamily: 'Orbitron', fontSize: '11px', letterSpacing: '0.15em',
                   background: showNotebook ? 'rgba(0,212,255,0.12)' : 'none',
@@ -732,17 +744,17 @@ System initialization complete. All core modules are online and operating within
 
               {showCalculator && (
                 <div onClick={(e) => e.stopPropagation()}>
-                  <CalculatorPanel onClose={() => setShowCalculator(false)} />
+                  <CalculatorPanel onClose={() => { playClick(); setShowCalculator(false); }} />
                 </div>
               )}
               {showTimerPanel && (
                 <div onClick={(e) => e.stopPropagation()}>
-                  <TimerPanel onClose={() => setShowTimerPanel(false)} activeTimers={activeTimers} onAddTimer={startTimer} />
+                  <TimerPanel onClose={() => { playClick(); setShowTimerPanel(false); }} activeTimers={activeTimers} onAddTimer={startTimer} />
                 </div>
               )}
               {showNotebook && (
                 <div onClick={(e) => e.stopPropagation()}>
-                  <NotebookPanel onClose={() => setShowNotebook(false)} />
+                  <NotebookPanel onClose={() => { playClick(); setShowNotebook(false); }} />
                 </div>
               )}
             </div>
@@ -764,12 +776,12 @@ System initialization complete. All core modules are online and operating within
             Open {pendingUrl.name}?
           </span>
           <button
-            onClick={() => { window.open(pendingUrl.url, '_blank'); setPendingUrl(null); }}
+            onClick={() => { playClick(); window.open(pendingUrl.url, '_blank'); setPendingUrl(null); }}
             style={{ fontFamily: 'Orbitron', fontSize: '11px', letterSpacing: '0.15em', background: 'rgba(0,212,255,0.1)', border: '1px solid #00d4ff', color: '#00d4ff', padding: '4px 14px', cursor: 'pointer' }}>
             OPEN
           </button>
           <button
-            onClick={() => setPendingUrl(null)}
+            onClick={() => { playClick(); setPendingUrl(null); }}
             style={{ fontFamily: 'Orbitron', fontSize: '11px', letterSpacing: '0.15em', background: 'none', border: '1px solid rgba(0,212,255,0.2)', color: 'rgba(0,212,255,0.4)', padding: '4px 14px', cursor: 'pointer' }}>
             DISMISS
           </button>
@@ -781,7 +793,7 @@ System initialization complete. All core modules are online and operating within
         <SettingsPanel
           key={settingsOpenSeq}
           open={showSettings}
-          onClose={() => { setShowSettings(false); setActiveNav('DASHBOARD'); }}
+          onClose={() => { playClick(); setShowSettings(false); setActiveNav('DASHBOARD'); }}
           alwaysOnDefault={alwaysOnDefault}
           onToggleAlwaysOnDefault={toggleAlwaysOnDefault}
           onClearHistory={clearHistory}
