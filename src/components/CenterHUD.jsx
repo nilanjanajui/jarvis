@@ -153,8 +153,23 @@ export default function CenterHUD({ status, transcript, streamingText }) {
                 <circle cx="250" cy="250" r="95" fill="url(#glowG)"
                     style={{ animation: `pulse-glow ${status === 'speaking' ? '0.8s' : '2.5s'} ease-in-out infinite` }} />
 
-                {/* Main sphere */}
+                {/* Main sphere base */}
                 <circle cx="250" cy="250" r="64" fill="url(#sphereG)" />
+
+                {/* Internal turbulence — layered blobs clipped to the sphere, each drifting
+                independently so the core reads as roiling energy rather than a flat gradient */}
+                <clipPath id="sphereClip">
+                    <circle cx="250" cy="250" r="63" />
+                </clipPath>
+
+                <g clipPath="url(#sphereClip)">
+                    <ellipse className="jarvis-blob-1" cx="238" cy="242" rx="34" ry="26"
+                        fill={ringColor} opacity="0.5" style={{ transformOrigin: '238px 242px', filter: 'blur(6px)' }} />
+                    <ellipse className="jarvis-blob-2" cx="262" cy="258" rx="28" ry="22"
+                        fill="#5efff9" opacity="0.4" style={{ transformOrigin: '262px 258px', filter: 'blur(7px)' }} />
+                    <ellipse className="jarvis-blob-3" cx="248" cy="268" rx="22" ry="18"
+                        fill={ringColor} opacity="0.35" style={{ transformOrigin: '248px 268px', filter: 'blur(5px)' }} />
+                </g>
 
                 {/* Specular */}
                 <ellipse cx="234" cy="232" rx="13" ry="8" fill="rgba(200,255,255,0.12)" transform="rotate(-25 234 232)" />
