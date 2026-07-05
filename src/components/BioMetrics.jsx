@@ -12,6 +12,7 @@ export default function BioMetrics() {
         <div className="hud-card" style={{ marginBottom: '8px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
                 <div className="hud-label" style={{ marginBottom: 0 }}>Bio-Metrics</div>
+                <span className="hud-sublabel">SYS.BIO.7739-A</span>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00d4ff" strokeWidth="1.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></svg>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 16px' }}>
