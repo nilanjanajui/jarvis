@@ -132,7 +132,7 @@ body {
 }
 
 /* ── Panel depth & rotation variance — breaks the grid-locked symmetry ──
-   Applied via nth-child so each panel in a stack gets a slightly different
+    Applied via nth-child so each panel in a stack gets a slightly different
    tilt and depth without needing per-component markup changes. */
 .jarvis-panel-left .hud-card,
 .jarvis-panel-right .hud-card {
@@ -227,6 +227,17 @@ body {
   color: #00d4ff;
   text-transform: uppercase;
   margin-bottom: 10px;
+}
+
+/* Technical sub-label — small cryptic system code under panel headers */
+.hud-sublabel {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 7px;
+  letter-spacing: 0.08em;
+  color: rgba(0, 212, 255, 0.35);
+  margin-top: -7px;
+  margin-bottom: 8px;
+  display: block;
 }
 
 /* Text glow */
