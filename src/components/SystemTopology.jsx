@@ -41,6 +41,7 @@ export default function SystemTopology() {
         <div className="hud-card" style={{ marginBottom: '8px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                 <div className="hud-label" style={{ marginBottom: 0 }}>System<br />Topology</div>
+                <span className="hud-sublabel">SYS.TPO.5D2B-6</span>
                 <span style={{ fontFamily: 'Orbitron', fontSize: '8px', letterSpacing: '0.15em', color: '#00d4ff', border: '1px solid rgba(0,212,255,0.3)', padding: '2px 6px' }}>SYNCED</span>
             </div>
             <div style={{ background: 'rgba(0,10,20,0.5)', padding: '8px', position: 'relative', overflow: 'hidden' }}>
