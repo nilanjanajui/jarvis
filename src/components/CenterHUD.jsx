@@ -137,9 +137,20 @@ export default function CenterHUD({ status, transcript, streamingText, bootProgr
                 <circle cx="250" cy="250" r="140" fill="none" stroke={ringColor} strokeWidth="1.2" opacity="0.5"
                     style={{ transformOrigin: '250px 250px', animation: 'spin 60s linear infinite' }} />
 
-                {/* Scanning sweep */}
+                {/* Scanning sweep — with trailing comet-tail fade behind the main wedge */}
                 {scanPath && (
                     <g style={{ transformOrigin: '250px 250px', animation: `spin ${scanSpeed} linear infinite` }}>
+                        {/* Trailing copies — rotated backward at increasing offsets, fading out */}
+                        <g transform="rotate(-18 250 250)">
+                            <path d={scanPath} fill="url(#scanG)" opacity="0.08" />
+                        </g>
+                        <g transform="rotate(-12 250 250)">
+                            <path d={scanPath} fill="url(#scanG)" opacity="0.15" />
+                        </g>
+                        <g transform="rotate(-6 250 250)">
+                            <path d={scanPath} fill="url(#scanG)" opacity="0.28" />
+                        </g>
+                        {/* Main leading wedge */}
                         <path d={scanPath} fill="url(#scanG)" opacity="0.6" />
                     </g>
                 )}
