@@ -3,14 +3,17 @@ import { useState, useEffect } from 'react';
 
 export default function SatelliteLink() {
     const [latency, setLatency] = useState(14);
-    const [location, setLocation] = useState(null);
+    const [location, setLocation] = useState(null); // { city, region, country, lat, lon }
     const [status, setStatus] = useState('loading');
 
+
+    // Simulated latency ticker
     useEffect(() => {
         const t = setInterval(() => setLatency(10 + Math.floor(Math.random() * 8)), 3000);
         return () => clearInterval(t);
     }, []);
 
+    // Real location + reverse geocode via weather API (already returns city/country)
     useEffect(() => {
         if (!navigator.geolocation) {
             setTimeout(() => setStatus('error'), 0);
@@ -32,6 +35,7 @@ export default function SatelliteLink() {
                     });
                     setStatus('ok');
                 } catch {
+                    // Still show raw coordinates even if reverse geocode fails
                     setLocation({ city: null, lat: latitude, lon: longitude });
                     setStatus('ok');
                 }
@@ -66,33 +70,29 @@ export default function SatelliteLink() {
 
     return (
         <div className="hud-card" style={{ marginBottom: '8px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
-                    <div className="hud-label" style={{ marginBottom: 0 }}>Satellite<br />Link</div>
-                    <span className="hud-sublabel">SYS.SAT.2E88-1</span>
-                </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                <div className="hud-label" style={{ marginBottom: 0 }}>Satellite<br />Link</div>
+                <span className="hud-sublabel">SYS.SAT.2E88-1</span>
                 <div style={{
-                    width: '8px', height: '8px', borderRadius: '50%',
-                    background: status === 'ok' ? '#22c55e' : status === 'denied' ? '#f59e0b' : 'rgba(0,212,255,0.4)',
-                    marginTop: '3px',
+                    width: '7px', height: '7px', borderRadius: '50%',
+                    background: status === 'ok' ? '#22c55e' : status === 'denied' ? '#f59e0b' : 'rgba(0,212,255,0.3)',
+                    marginTop: '2px',
                     animation: status === 'loading' ? 'pulse-glow 1.5s ease-in-out infinite' : 'none',
                 }} />
             </div>
 
-            <div style={{ marginTop: '4px' }}>
-                {rows.map(([l, v]) => (
-                    <div key={l} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                        <span style={{ fontFamily: 'Orbitron', fontSize: '9px', letterSpacing: '0.12em', color: 'rgba(0,212,255,0.65)' }}>
-                            {l}
-                        </span>
-                        <span style={{ fontFamily: 'Share Tech Mono', fontSize: '11px', color: '#5ee8ff', textAlign: 'right' }}>
-                            {v}
-                        </span>
-                    </div>
-                ))}
-            </div>
+            {rows.map(([l, v]) => (
+                <div key={l} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                    <span style={{ fontFamily: 'Orbitron', fontSize: '8px', letterSpacing: '0.12em', color: 'rgba(0,212,255,0.45)' }}>
+                        {l}
+                    </span>
+                    <span style={{ fontFamily: 'Share Tech Mono', fontSize: '10px', color: '#00d4ff', textAlign: 'right' }}>
+                        {v}
+                    </span>
+                </div>
+            ))}
 
-            <div style={{ height: '3px', background: 'rgba(0,212,255,0.15)', borderRadius: '2px', marginTop: '6px' }}>
+            <div style={{ height: '3px', background: 'rgba(0,212,255,0.1)', borderRadius: '2px', marginTop: '6px' }}>
                 <div style={{
                     height: '100%',
                     width: `${(latency / 30) * 100}%`,
