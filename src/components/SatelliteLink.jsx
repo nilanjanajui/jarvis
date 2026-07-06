@@ -72,6 +72,7 @@ export default function SatelliteLink() {
         <div className="hud-card" style={{ marginBottom: '8px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
                 <div className="hud-label" style={{ marginBottom: 0 }}>Satellite<br />Link</div>
+                <span className="hud-sublabel">SYS.SAT.2E88-1</span>
                 <div style={{
                     width: '7px', height: '7px', borderRadius: '50%',
                     background: status === 'ok' ? '#22c55e' : status === 'denied' ? '#f59e0b' : 'rgba(0,212,255,0.3)',
