@@ -5,6 +5,7 @@ export default function SecurityStatus() {
         <div className="hud-card" style={{ marginBottom: '8px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
                 <div className="hud-label" style={{ marginBottom: 0 }}>Security<br />Status</div>
+                <span className="hud-sublabel">SYS.SEC.3A7D-9</span>
                 <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#00d4ff', animation: 'pulse-glow 2s infinite' }} />
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '8px' }}>

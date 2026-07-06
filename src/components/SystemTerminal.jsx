@@ -17,7 +17,9 @@ export default function SystemTerminal() {
                     <path d="M6 9l3 3-3 3M13 15h5" />
                 </svg>
                 <div style={{ fontFamily: 'Orbitron', fontSize: '8px', letterSpacing: '0.15em', color: '#00d4ff' }}>SYSTEM TERMINAL</div>
+                <span className="hud-sublabel">SYS.TRM.6B41-D</span>
             </div>
+
             <div style={{ fontFamily: 'Share Tech Mono', fontSize: '10px', lineHeight: '1.7' }}>
                 {lines.map((l, i) => (
                     <div key={i} style={{ color: i === 0 ? '#00d4ff' : 'rgba(0,212,255,0.6)' }}>{l}</div>

@@ -58,6 +58,7 @@ export default function AtmosphericData() {
         <div className="hud-card" style={{ marginBottom: '8px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                 <div className="hud-label" style={{ marginBottom: 0 }}>Atmospheric Data</div>
+                <span className="hud-sublabel">SYS.ATM.9F03-C</span>
                 {weather && (
                     <span style={{ fontFamily: 'Orbitron', fontSize: '7px', letterSpacing: '0.1em', color: 'rgba(0,212,255,0.4)' }}>
                         {weather.city.toUpperCase()}
