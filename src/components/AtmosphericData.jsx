@@ -28,6 +28,7 @@ export default function AtmosphericData() {
             { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
 
+        // Refresh every 10 minutes
         const interval = setInterval(() => {
             navigator.geolocation.getCurrentPosition(async (pos) => {
                 try {
@@ -55,34 +56,32 @@ export default function AtmosphericData() {
 
     return (
         <div className="hud-card" style={{ marginBottom: '8px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
-                    <div className="hud-label" style={{ marginBottom: 0 }}>Atmospheric Data</div>
-                    <span className="hud-sublabel">SYS.ATM.9F03-C</span>
-                </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                <div className="hud-label" style={{ marginBottom: 0 }}>Atmospheric Data</div>
+                <span className="hud-sublabel">SYS.ATM.9F03-C</span>
                 {weather && (
-                    <span style={{ fontFamily: 'Orbitron', fontSize: '9px', letterSpacing: '0.1em', color: 'rgba(0,212,255,0.65)', marginTop: '2px' }}>
+                    <span style={{ fontFamily: 'Orbitron', fontSize: '7px', letterSpacing: '0.1em', color: 'rgba(0,212,255,0.4)' }}>
                         {weather.city.toUpperCase()}
                     </span>
                 )}
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '4px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 {metrics.map((m) => (
                     <div key={m.label}>
-                        <div style={{ fontFamily: 'Orbitron', fontSize: '9px', letterSpacing: '0.12em', color: 'rgba(0,212,255,0.65)', marginBottom: '3px' }}>
+                        <div style={{ fontFamily: 'Orbitron', fontSize: '7px', letterSpacing: '0.12em', color: 'rgba(0,212,255,0.45)', marginBottom: '3px' }}>
                             {m.label}
                         </div>
                         <div
                             className={m.big ? 'text-glow' : ''}
                             style={{
                                 fontFamily: 'Orbitron',
-                                fontSize: m.big ? '22px' : '14px',
-                                fontWeight: m.big ? '700' : '500',
-                                color: '#5ee8ff',
+                                fontSize: m.big ? '22px' : '13px',
+                                fontWeight: m.big ? '700' : '400',
+                                color: '#00d4ff',
                                 whiteSpace: 'pre-line',
                                 lineHeight: 1.3,
-                                opacity: status === 'loading' ? 0.5 : 1,
+                                opacity: status === 'loading' ? 0.4 : 1,
                                 transition: 'opacity 0.3s',
                             }}
                         >
