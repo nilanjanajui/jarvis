@@ -43,6 +43,7 @@ export default function SystemLog({ extraLine }) {
     return (
         <div className="hud-card" style={{ height: '148px' }}>
             <div className="hud-label">System Metrics Log</div>
+            <span className="hud-sublabel">SYS.LOG.0091-F</span>
             <div style={{ overflow: 'hidden', height: '100px' }}>
                 {displayLines.map((line, i) => (
                     <div
