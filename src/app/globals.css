@@ -480,7 +480,7 @@ body {
 
 .jarvis-main-grid {
   display: grid;
-  grid-template-columns: 272px 1fr 272px;
+  grid-template-columns: 228px 1fr 228px;
   overflow: hidden;
   min-height: 0;
 }

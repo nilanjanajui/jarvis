@@ -62,7 +62,7 @@ export default function CenterHUD({ status, transcript, streamingText, bootProgr
 
             {/* Background radial glow */}
             <div style={{
-                position: 'absolute', width: '480px', height: '480px', borderRadius: '50%',
+                position: 'absolute', width: '560px', height: '560px', borderRadius: '50%',
                 background: `radial-gradient(circle, ${ringColor}${status === 'speaking' ? '12' : '06'} 0%, transparent 70%)`,
                 pointerEvents: 'none', transition: 'background 0.5s',
                 animation: 'pulse-glow 2.5s ease-in-out infinite',
@@ -70,20 +70,20 @@ export default function CenterHUD({ status, transcript, streamingText, bootProgr
 
             {status === 'speaking' && (
                 <>
-                    <div style={{ position: 'absolute', width: '128px', height: '128px', borderRadius: '50%', border: `1.5px solid ${ringColor}`, animation: 'sonar 1.8s ease-out infinite', pointerEvents: 'none' }} />
-                    <div style={{ position: 'absolute', width: '128px', height: '128px', borderRadius: '50%', border: `1.5px solid ${ringColor}`, animation: 'sonar 1.8s ease-out infinite', animationDelay: '0.6s', pointerEvents: 'none' }} />
-                    <div style={{ position: 'absolute', width: '128px', height: '128px', borderRadius: '50%', border: `1.5px solid ${ringColor}`, animation: 'sonar 1.8s ease-out infinite', animationDelay: '1.2s', pointerEvents: 'none' }} />
+                    <div style={{ position: 'absolute', width: '150px', height: '150px', borderRadius: '50%', border: `1.5px solid ${ringColor}`, animation: 'sonar 1.8s ease-out infinite', pointerEvents: 'none' }} />
+                    <div style={{ position: 'absolute', width: '150px', height: '150px', borderRadius: '50%', border: `1.5px solid ${ringColor}`, animation: 'sonar 1.8s ease-out infinite', animationDelay: '0.6s', pointerEvents: 'none' }} />
+                    <div style={{ position: 'absolute', width: '150px', height: '150px', borderRadius: '50%', border: `1.5px solid ${ringColor}`, animation: 'sonar 1.8s ease-out infinite', animationDelay: '1.2s', pointerEvents: 'none' }} />
                 </>
             )}
             {status === 'listening' && (
                 <>
-                    <div style={{ position: 'absolute', width: '128px', height: '128px', borderRadius: '50%', border: `1px solid ${ringColor}`, animation: 'sonar 2.4s ease-out infinite', pointerEvents: 'none' }} />
-                    <div style={{ position: 'absolute', width: '128px', height: '128px', borderRadius: '50%', border: `1px solid ${ringColor}`, animation: 'sonar 2.4s ease-out infinite', animationDelay: '0.8s', pointerEvents: 'none' }} />
+                    <div style={{ position: 'absolute', width: '150px', height: '150px', borderRadius: '50%', border: `1px solid ${ringColor}`, animation: 'sonar 2.4s ease-out infinite', pointerEvents: 'none' }} />
+                    <div style={{ position: 'absolute', width: '150px', height: '150px', borderRadius: '50%', border: `1px solid ${ringColor}`, animation: 'sonar 2.4s ease-out infinite', animationDelay: '0.8s', pointerEvents: 'none' }} />
                 </>
             )}
 
             {/* Main SVG HUD */}
-            <svg viewBox="0 0 500 500" style={{ position: 'absolute', width: '480px', height: '480px' }} xmlns="http://www.w3.org/2000/svg">
+            <svg viewBox="0 0 500 500" style={{ position: 'absolute', width: '560px', height: '560px' }} xmlns="http://www.w3.org/2000/svg">
                 <defs>
                     <radialGradient id="sphereG" cx="38%" cy="32%">
                         <stop offset="0%" stopColor="#5efff9" />
