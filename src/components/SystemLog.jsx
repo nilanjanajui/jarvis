@@ -20,7 +20,6 @@ export default function SystemLog({ extraLine }) {
     const [lines, setLines] = useState(MESSAGES.slice(0, 5));
     const bottomRef = useRef(null);
 
-    // Auto-add random log lines
     useEffect(() => {
         const t = setInterval(() => {
             setLines((p) => [...p.slice(-10), MESSAGES[Math.floor(Math.random() * MESSAGES.length)]]);
@@ -28,8 +27,7 @@ export default function SystemLog({ extraLine }) {
         return () => clearInterval(t);
     }, []);
 
-    // Derive display lines — combine base lines with extraLine without a setState in effect
-    const displayLines = useMemo(() => 
+    const displayLines = useMemo(() =>
         extraLine
             ? [...lines.slice(-9), extraLine]
             : lines,
@@ -41,17 +39,17 @@ export default function SystemLog({ extraLine }) {
     }, [displayLines]);
 
     return (
-        <div className="hud-card" style={{ height: '148px' }}>
+        <div className="hud-card" style={{ height: '156px' }}>
             <div className="hud-label">System Metrics Log</div>
             <span className="hud-sublabel">SYS.LOG.0091-F</span>
-            <div style={{ overflow: 'hidden', height: '100px' }}>
+            <div style={{ overflow: 'hidden', height: '104px' }}>
                 {displayLines.map((line, i) => (
                     <div
                         key={i}
                         style={{
                             fontFamily: 'Share Tech Mono',
-                            fontSize: '10px',
-                            color: i === displayLines.length - 1 ? '#00d4ff' : 'rgba(0,212,255,0.5)',
+                            fontSize: '11px',
+                            color: i === displayLines.length - 1 ? '#5ee8ff' : 'rgba(0,212,255,0.7)',
                             marginBottom: '3px',
                             letterSpacing: '0.03em',
                         }}

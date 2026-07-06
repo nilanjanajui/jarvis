@@ -222,20 +222,22 @@ body {
 /* HUD label */
 .hud-label {
   font-family: 'Orbitron', sans-serif;
-  font-size: 10px;
+  font-size: 12px;
+  font-weight: 700;
   letter-spacing: 0.15em;
-  color: #00d4ff;
+  color: #7fe8ff;
   text-transform: uppercase;
   margin-bottom: 10px;
+  text-shadow: 0 0 6px rgba(0, 212, 255, 0.4);
 }
 
 /* Technical sub-label — small cryptic system code under panel headers */
 .hud-sublabel {
   font-family: 'Share Tech Mono', monospace;
-  font-size: 7px;
+  font-size: 8px;
   letter-spacing: 0.08em;
-  color: rgba(0, 212, 255, 0.35);
-  margin-top: -7px;
+  color: rgba(0, 212, 255, 0.5);
+  margin-top: -6px;
   margin-bottom: 8px;
   display: block;
 }
