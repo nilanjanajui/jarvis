@@ -39,16 +39,18 @@ export default function SystemTopology() {
 
     return (
         <div className="hud-card" style={{ marginBottom: '8px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                <div className="hud-label" style={{ marginBottom: 0 }}>System<br />Topology</div>
-                <span className="hud-sublabel">SYS.TPO.5D2B-6</span>
-                <span style={{ fontFamily: 'Orbitron', fontSize: '8px', letterSpacing: '0.15em', color: '#00d4ff', border: '1px solid rgba(0,212,255,0.3)', padding: '2px 6px' }}>SYNCED</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                    <div className="hud-label" style={{ marginBottom: 0 }}>System<br />Topology</div>
+                    <span className="hud-sublabel">SYS.TPO.5D2B-6</span>
+                </div>
+                <span style={{ fontFamily: 'Orbitron', fontSize: '9px', letterSpacing: '0.15em', color: '#5ee8ff', border: '1px solid rgba(0,212,255,0.4)', padding: '2px 7px', marginTop: '2px' }}>SYNCED</span>
             </div>
-            <div style={{ background: 'rgba(0,10,20,0.5)', padding: '8px', position: 'relative', overflow: 'hidden' }}>
-                <div style={{ position: 'absolute', left: 0, right: 0, height: '1px', background: 'linear-gradient(90deg,transparent,rgba(0,212,255,0.4),transparent)', animation: 'scan-line 3s linear infinite' }} />
-                <svg viewBox={`0 0 ${W} ${H + 20}`} width="100%" style={{ display: 'block', filter: 'blur(0.4px)', opacity: 0.9 }}>
-                    {lines.map((d, i) => <path key={i} d={d} fill="none" stroke="#00d4ff" strokeWidth="0.7" opacity="0.4" />)}
-                    {pts.map((p, i) => <circle key={i} cx={p.x} cy={p.y} r="1.2" fill="#00d4ff" opacity="0.6" />)}
+            <div style={{ background: 'rgba(0,10,20,0.5)', padding: '8px', position: 'relative', overflow: 'hidden', marginTop: '6px' }}>
+                <div style={{ position: 'absolute', left: 0, right: 0, height: '1px', background: 'linear-gradient(90deg,transparent,rgba(0,212,255,0.5),transparent)', animation: 'scan-line 3s linear infinite' }} />
+                <svg viewBox={`0 0 ${W} ${H + 20}`} width="100%" style={{ display: 'block', filter: 'blur(0.4px)', opacity: 0.95 }}>
+                    {lines.map((d, i) => <path key={i} d={d} fill="none" stroke="#5ee8ff" strokeWidth="0.8" opacity="0.5" />)}
+                    {pts.map((p, i) => <circle key={i} cx={p.x} cy={p.y} r="1.3" fill="#5ee8ff" opacity="0.75" />)}
                 </svg>
             </div>
         </div>

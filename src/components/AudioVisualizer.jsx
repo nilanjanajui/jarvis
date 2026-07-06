@@ -39,7 +39,7 @@ export default function AudioVisualizer() {
             const bw = (W / data.length) * 1.8;
             data.forEach((val, i) => {
                 const h = (val / 255) * H * 0.85;
-                ctx.fillStyle = `rgba(0,212,255,${0.4 + (val / 255) * 0.6})`;
+                ctx.fillStyle = `rgba(94,232,255,${0.5 + (val / 255) * 0.5})`;
                 ctx.fillRect(i * (W / data.length), H - h, bw - 1, h);
             });
         };
@@ -49,11 +49,10 @@ export default function AudioVisualizer() {
 
     return (
         <div className="hud-card" style={{ marginBottom: '8px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                <div className="hud-label" style={{ marginBottom: 0 }}>Audio Visualizer</div>
-            </div>
-            <canvas ref={canvasRef} style={{ width: '100%', height: '48px', display: 'block' }} />
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px', fontFamily: 'Share Tech Mono', fontSize: '7px', color: 'rgba(0,212,255,0.35)' }}>
+            <div className="hud-label" style={{ marginBottom: 0 }}>Audio Visualizer</div>
+            <span className="hud-sublabel">SYS.AUD.4C10-E</span>
+            <canvas ref={canvasRef} style={{ width: '100%', height: '48px', display: 'block', marginTop: '4px' }} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px', fontFamily: 'Share Tech Mono', fontSize: '9px', color: 'rgba(0,212,255,0.55)' }}>
                 <span>20Hz</span><span>20kHz</span>
             </div>
         </div>
