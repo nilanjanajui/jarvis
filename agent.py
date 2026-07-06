@@ -4,6 +4,8 @@ import subprocess
 import platform
 import os
 import shutil
+import psutil
+import time
 
 app = Flask(__name__)
 
@@ -252,6 +254,42 @@ def volume():
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
+    
+START_TIME = time.time()
+
+@app.route('/system-stats', methods=['GET'])
+def system_stats():
+    try:
+        cpu_percent = psutil.cpu_percent(interval=0.3)
+        mem = psutil.virtual_memory()
+        disk = psutil.disk_usage('/')
+
+        uptime_seconds = int(time.time() - START_TIME)
+        hours = uptime_seconds // 3600
+        minutes = (uptime_seconds % 3600) // 60
+
+        # Temperature isn't available on all systems — fail gracefully
+        temp_c = None
+        try:
+            temps = psutil.sensors_temperatures()
+            if temps:
+                first_sensor = next(iter(temps.values()))
+                if first_sensor:
+                    temp_c = round(first_sensor[0].current, 1)
+        except Exception:
+            pass
+
+        return jsonify({
+            'cpu_percent': round(cpu_percent, 1),
+            'ram_percent': round(mem.percent, 1),
+            'ram_used_gb': round(mem.used / (1024 ** 3), 1),
+            'ram_total_gb': round(mem.total / (1024 ** 3), 1),
+            'disk_percent': round(disk.percent, 1),
+            'temp_c': temp_c,
+            'uptime': f'{hours}h {minutes}m',
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 if __name__ == '__main__':
