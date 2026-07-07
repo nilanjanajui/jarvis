@@ -117,18 +117,43 @@ body {
 }
 
 .hud-card {
-  background: rgba(0, 18, 36, 0.75);
-  border: 1px solid rgba(0, 212, 255, 0.18);
+  background: rgba(0, 18, 36, 0.35);
+  /* much more transparent — panels feel like glass, not solid boxes */
+  border: 1px solid rgba(0, 212, 255, 0.1);
+  /* thinner, near-invisible border */
   padding: 14px;
   position: relative;
-  /* Angled corners — top-left and bottom-right cut at 45°, giving the
-     octagonal "cut metal panel" look instead of a plain rectangle */
+  --webkit-backdrop-filter: blur(2px);
+  /* subtle glass effect over whatever is behind it */
   clip-path: polygon(14px 0%,
       100% 0%,
       100% calc(100% - 14px),
       calc(100% - 14px) 100%,
       0% 100%,
       0% 14px);
+}
+
+/* Thin connector line reaching from each panel toward the center HUD —
+    reinforces "part of one system" rather than isolated boxes.
+   Only applied to panels in the side columns. */
+.jarvis-panel-left .hud-card::before,
+.jarvis-panel-right .hud-card::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 24px;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(0, 212, 255, 0.4), transparent);
+  pointer-events: none;
+}
+
+.jarvis-panel-left .hud-card::before {
+  right: -24px;
+}
+
+.jarvis-panel-right .hud-card::before {
+  left: -24px;
+  background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.4));
 }
 
 /* ── Panel depth & rotation variance — breaks the grid-locked symmetry ──
