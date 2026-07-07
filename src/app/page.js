@@ -71,7 +71,6 @@ export default function JarvisPage() {
   const [particles, setParticles] = useState([]);
   const [activeNav, setActiveNav] = useState('DASHBOARD');
   const [bootProgress, setBootProgress] = useState(0);
-  const [hudMode, setHudMode] = useState('systems'); // 'systems' | 'pure'
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -537,6 +536,8 @@ System initialization complete. All core modules are online and operating within
     } catch (e) {
       console.error('Failed to save voice choice:', e);
     }
+    // A previously failed ElevenLabs call may have flipped this off —
+    // picking a new voice is a good moment to let it try again.
     setElevenLabsOk(true);
     elevenLabsOkRef.current = true;
   };
@@ -624,207 +625,149 @@ System initialization complete. All core modules are online and operating within
           settingsOpen={showSettings}
         />
 
-        {/* Pure HUD mode toggle */}
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '6px 0', background: 'rgba(0,5,12,0.7)' }}>
+        {/* Status bar */}
+        <div className="jarvis-status-bar" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '14px', padding: '4px 0', borderBottom: '1px solid rgba(0,212,255,0.06)', background: 'rgba(0,5,12,0.88)', flexWrap: 'wrap' }}>
+          <span style={{ fontFamily: 'Share Tech Mono', fontSize: '11px', color: agentConnected ? '#22c55e' : 'rgba(0,212,255,0.3)', letterSpacing: '0.1em' }}>
+            {agentConnected ? '● AGENT ONLINE' : '○ AGENT OFFLINE'}
+          </span>
+          <span style={{ color: 'rgba(0,212,255,0.2)' }}>|</span>
+          <span style={{ fontFamily: 'Share Tech Mono', fontSize: '11px', color: userLocation ? '#22c55e' : 'rgba(0,212,255,0.3)', letterSpacing: '0.1em' }}>
+            {userLocation ? '● LOCATION LOCKED' : '○ LOCATION UNKNOWN'}
+          </span>
+          <span style={{ color: 'rgba(0,212,255,0.2)' }}>|</span>
+          <span style={{ fontFamily: 'Share Tech Mono', fontSize: '11px', color: elevenLabsOk ? '#00d4ff' : '#f59e0b', letterSpacing: '0.1em' }}>
+            {elevenLabsOk ? '● ELEVENLABS VOICE' : '⚠ BROWSER VOICE'}
+          </span>
+          <span style={{ color: 'rgba(0,212,255,0.2)' }}>|</span>
           <button
-            onClick={() => { playBlip(); setHudMode((m) => m === 'pure' ? 'systems' : 'pure'); }}
-            style={{
-              fontFamily: 'Orbitron', fontSize: '9px', letterSpacing: '0.2em',
-              background: 'none',
-              border: `1px solid ${hudMode === 'pure' ? '#a855f7' : 'rgba(0,212,255,0.3)'}`,
-              color: hudMode === 'pure' ? '#a855f7' : 'rgba(0,212,255,0.6)',
-              padding: '4px 16px', cursor: 'pointer', transition: 'all 0.3s',
-            }}
+            onClick={toggleAlwaysOn}
+            style={{ fontFamily: 'Share Tech Mono', fontSize: '11px', letterSpacing: '0.1em', background: 'none', border: `1px solid ${alwaysOn ? '#22c55e' : 'rgba(0,212,255,0.25)'}`, color: alwaysOn ? '#22c55e' : 'rgba(0,212,255,0.5)', padding: '2px 10px', cursor: 'pointer', borderRadius: '2px', transition: 'all 0.3s' }}
           >
-            {hudMode === 'pure' ? '◉ PURE HUD — EXIT' : '○ ENTER PURE HUD'}
+            {alwaysOn ? '● ALWAYS LISTENING' : '○ CLICK TO TALK'}
           </button>
-        </div>
-
-        {hudMode === 'systems' && (
-          <>
-            {/* Status bar */}
-            <div className="jarvis-status-bar" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '14px', padding: '4px 0', borderBottom: '1px solid rgba(0,212,255,0.06)', background: 'rgba(0,5,12,0.88)', flexWrap: 'wrap' }}>
-              <span style={{ fontFamily: 'Share Tech Mono', fontSize: '11px', color: agentConnected ? '#22c55e' : 'rgba(0,212,255,0.3)', letterSpacing: '0.1em' }}>
-                {agentConnected ? '● AGENT ONLINE' : '○ AGENT OFFLINE'}
-              </span>
+          {alwaysOn && (
+            <>
               <span style={{ color: 'rgba(0,212,255,0.2)' }}>|</span>
-              <span style={{ fontFamily: 'Share Tech Mono', fontSize: '11px', color: userLocation ? '#22c55e' : 'rgba(0,212,255,0.3)', letterSpacing: '0.1em' }}>
-                {userLocation ? '● LOCATION LOCKED' : '○ LOCATION UNKNOWN'}
+              <span style={{ fontFamily: 'Share Tech Mono', fontSize: '11px', color: 'rgba(0,212,255,0.4)', letterSpacing: '0.08em' }}>
+                &quot;wake up jarvis&quot; to greet · &quot;jarvis sleep&quot; to pause
               </span>
-              <span style={{ color: 'rgba(0,212,255,0.2)' }}>|</span>
-              <span style={{ fontFamily: 'Share Tech Mono', fontSize: '11px', color: elevenLabsOk ? '#00d4ff' : '#f59e0b', letterSpacing: '0.1em' }}>
-                {elevenLabsOk ? '● ELEVENLABS VOICE' : '⚠ BROWSER VOICE'}
-              </span>
+            </>
+          )}
+          {messages.length > 0 && (
+            <>
               <span style={{ color: 'rgba(0,212,255,0.2)' }}>|</span>
               <button
-                onClick={toggleAlwaysOn}
-                style={{ fontFamily: 'Share Tech Mono', fontSize: '11px', letterSpacing: '0.1em', background: 'none', border: `1px solid ${alwaysOn ? '#22c55e' : 'rgba(0,212,255,0.25)'}`, color: alwaysOn ? '#22c55e' : 'rgba(0,212,255,0.5)', padding: '2px 10px', cursor: 'pointer', borderRadius: '2px', transition: 'all 0.3s' }}
+                onClick={() => { playClick(); clearHistory(); }}
+                style={{
+                  fontFamily: 'Share Tech Mono', fontSize: '11px', letterSpacing: '0.1em',
+                  background: 'none', border: '1px solid rgba(239,68,68,0.3)',
+                  color: 'rgba(239,68,68,0.7)', padding: '2px 10px', cursor: 'pointer', borderRadius: '2px',
+                }}
               >
-                {alwaysOn ? '● ALWAYS LISTENING' : '○ CLICK TO TALK'}
+                CLEAR HISTORY ({messages.length})
               </button>
-              {alwaysOn && (
-                <>
-                  <span style={{ color: 'rgba(0,212,255,0.2)' }}>|</span>
-                  <span style={{ fontFamily: 'Share Tech Mono', fontSize: '11px', color: 'rgba(0,212,255,0.4)', letterSpacing: '0.08em' }}>
-                    &quot;wake up jarvis&quot; to greet · &quot;jarvis sleep&quot; to pause
-                  </span>
-                </>
-              )}
-              {messages.length > 0 && (
-                <>
-                  <span style={{ color: 'rgba(0,212,255,0.2)' }}>|</span>
-                  <button
-                    onClick={() => { playClick(); clearHistory(); }}
-                    style={{
-                      fontFamily: 'Share Tech Mono', fontSize: '11px', letterSpacing: '0.1em',
-                      background: 'none', border: '1px solid rgba(239,68,68,0.3)',
-                      color: 'rgba(239,68,68,0.7)', padding: '2px 10px', cursor: 'pointer', borderRadius: '2px',
-                    }}
-                  >
-                    CLEAR HISTORY ({messages.length})
-                  </button>
-                </>
-              )}
+            </>
+          )}
+        </div>
+
+        {/* Layout */}
+        <div className="jarvis-main-grid" style={{ flex: 1 }}>
+          <div className="jarvis-panel-left">
+            <NeuralSync />
+            <BioMetrics />
+            <AudioVisualizer />
+            <SystemLog extraLine={logLine} />
+            {activeTimers.length > 0 && (
+              <div className="hud-card" style={{ marginTop: '8px' }}>
+                <div className="hud-label">Active Timers</div>
+                {activeTimers.map((t) => (
+                  <TimerRow key={t.id} label={t.label} endsAt={t.endsAt} />
+                ))}
+              </div>
+            )}
+          </div>
+
+
+          <div className="jarvis-panel-center">
+
+            {/* Toggle buttons — panels layer on top, sphere stays visible always */}
+            <div className="jarvis-tool-toggles" style={{ display: 'flex', justifyContent: 'center', gap: '8px', padding: '10px 0' }}>
+              <button
+                onClick={() => { playClick(); setShowCalculator((v) => !v); }}
+                style={{
+                  fontFamily: 'Orbitron', fontSize: '11px', letterSpacing: '0.15em',
+                  background: showCalculator ? 'rgba(0,212,255,0.12)' : 'none',
+                  border: `1px solid ${showCalculator ? '#00d4ff' : 'rgba(0,212,255,0.2)'}`,
+                  color: showCalculator ? '#00d4ff' : 'rgba(0,212,255,0.4)',
+                  padding: '5px 14px', cursor: 'pointer', transition: 'all 0.2s',
+                }}
+              >
+                CALC
+              </button>
+              <button
+                onClick={() => { playClick(); setShowTimerPanel((v) => !v); }}
+                style={{
+                  fontFamily: 'Orbitron', fontSize: '11px', letterSpacing: '0.15em',
+                  background: showTimerPanel ? 'rgba(0,212,255,0.12)' : 'none',
+                  border: `1px solid ${showTimerPanel ? '#00d4ff' : 'rgba(0,212,255,0.2)'}`,
+                  color: showTimerPanel ? '#00d4ff' : 'rgba(0,212,255,0.4)',
+                  padding: '5px 14px', cursor: 'pointer', transition: 'all 0.2s',
+                }}
+              >
+                TIMER
+              </button>
+              <button
+                onClick={() => { playClick(); setShowNotebook((v) => !v); }}
+                style={{
+                  fontFamily: 'Orbitron', fontSize: '11px', letterSpacing: '0.15em',
+                  background: showNotebook ? 'rgba(0,212,255,0.12)' : 'none',
+                  border: `1px solid ${showNotebook ? '#00d4ff' : 'rgba(0,212,255,0.2)'}`,
+                  color: showNotebook ? '#00d4ff' : 'rgba(0,212,255,0.4)',
+                  padding: '5px 14px', cursor: 'pointer', transition: 'all 0.2s',
+                }}
+              >
+                NOTES
+              </button>
             </div>
 
-            {/* Layout */}
-            <div className="jarvis-main-grid" style={{ flex: 1 }}>
-              <div className="jarvis-panel-left">
-                <NeuralSync />
-                <BioMetrics />
-                <AudioVisualizer />
-                <SystemLog extraLine={logLine} />
-                {activeTimers.length > 0 && (
-                  <div className="hud-card" style={{ marginTop: '8px' }}>
-                    <div className="hud-label">Active Timers</div>
-                    {activeTimers.map((t) => (
-                      <TimerRow key={t.id} label={t.label} endsAt={t.endsAt} />
-                    ))}
-                  </div>
-                )}
-              </div>
-
-
-              <div className="jarvis-panel-center">
-
-                {/* Toggle buttons — panels layer on top, sphere stays visible always */}
-                <div className="jarvis-tool-toggles" style={{ display: 'flex', justifyContent: 'center', gap: '8px', padding: '10px 0' }}>
-                  <button
-                    onClick={() => { playClick(); setShowCalculator((v) => !v); }}
-                    style={{
-                      fontFamily: 'Orbitron', fontSize: '11px', letterSpacing: '0.15em',
-                      background: showCalculator ? 'rgba(0,212,255,0.12)' : 'none',
-                      border: `1px solid ${showCalculator ? '#00d4ff' : 'rgba(0,212,255,0.2)'}`,
-                      color: showCalculator ? '#00d4ff' : 'rgba(0,212,255,0.4)',
-                      padding: '5px 14px', cursor: 'pointer', transition: 'all 0.2s',
-                    }}
-                  >
-                    CALC
-                  </button>
-                  <button
-                    onClick={() => { playClick(); setShowTimerPanel((v) => !v); }}
-                    style={{
-                      fontFamily: 'Orbitron', fontSize: '11px', letterSpacing: '0.15em',
-                      background: showTimerPanel ? 'rgba(0,212,255,0.12)' : 'none',
-                      border: `1px solid ${showTimerPanel ? '#00d4ff' : 'rgba(0,212,255,0.2)'}`,
-                      color: showTimerPanel ? '#00d4ff' : 'rgba(0,212,255,0.4)',
-                      padding: '5px 14px', cursor: 'pointer', transition: 'all 0.2s',
-                    }}
-                  >
-                    TIMER
-                  </button>
-                  <button
-                    onClick={() => { playClick(); setShowNotebook((v) => !v); }}
-                    style={{
-                      fontFamily: 'Orbitron', fontSize: '11px', letterSpacing: '0.15em',
-                      background: showNotebook ? 'rgba(0,212,255,0.12)' : 'none',
-                      border: `1px solid ${showNotebook ? '#00d4ff' : 'rgba(0,212,255,0.2)'}`,
-                      color: showNotebook ? '#00d4ff' : 'rgba(0,212,255,0.4)',
-                      padding: '5px 14px', cursor: 'pointer', transition: 'all 0.2s',
-                    }}
-                  >
-                    NOTES
-                  </button>
-                </div>
-
-                {/* Sphere always visible — panels float on top in corners */}
-                <div
-                  onClick={handleMicClick}
-                  style={{ flex: 1, cursor: !alwaysOn && status === 'idle' ? 'pointer' : 'default', position: 'relative' }}
-                >
-                  <CenterHUD status={status} transcript={transcript} streamingText={streamingText} bootProgress={bootProgress} />
-                  {!alwaysOn && status === 'idle' && (
-                    <div style={{ position: 'absolute', bottom: '6%', left: '50%', transform: 'translateX(-50%)', fontFamily: 'Orbitron', fontSize: '10px', letterSpacing: '0.2em', color: 'rgba(0,212,255,0.4)' }}>
-                      CLICK TO ACTIVATE
-                    </div>
-                  )}
-
-                  {showCalculator && (
-                    <div onClick={(e) => e.stopPropagation()}>
-                      <CalculatorPanel onClose={() => { playClick(); setShowCalculator(false); }} />
-                    </div>
-                  )}
-                  {showTimerPanel && (
-                    <div onClick={(e) => e.stopPropagation()}>
-                      <TimerPanel onClose={() => { playClick(); setShowTimerPanel(false); }} activeTimers={activeTimers} onAddTimer={startTimer} />
-                    </div>
-                  )}
-                  {showNotebook && (
-                    <div onClick={(e) => e.stopPropagation()}>
-                      <NotebookPanel onClose={() => { playClick(); setShowNotebook(false); }} />
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="jarvis-panel-right" style={{ padding: '10px', overflowY: 'auto', borderLeft: '1px solid rgba(0,212,255,0.07)' }}>
-                <SystemTopology />
-                <SatelliteLink />
-                <AtmosphericData />
-                <SecurityStatus />
-                <SystemTerminal />
-              </div>
-            </div>
-          </>
-        )}
-
-        {hudMode === 'pure' && (
-          /* ── PURE JARVIS MODE — nothing but the core, reacting to you ── */
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-
-            {/* Minimal status — only what matters when JARVIS is "live" */}
-            <div style={{ position: 'absolute', top: '16px', display: 'flex', gap: '16px', fontFamily: 'Share Tech Mono', fontSize: '10px', letterSpacing: '0.1em' }}>
-              <span style={{ color: elevenLabsOk ? 'rgba(0,212,255,0.6)' : 'rgba(245,158,11,0.7)' }}>
-                {elevenLabsOk ? '● VOICE ACTIVE' : '⚠ FALLBACK VOICE'}
-              </span>
-              <span style={{ color: alwaysOn ? '#22c55e' : 'rgba(0,212,255,0.4)' }}>
-                {alwaysOn ? '● LISTENING' : '○ CLICK TO SPEAK'}
-              </span>
-            </div>
-
-            {/* The sphere, large, centered, alone */}
+            {/* Sphere always visible — panels float on top in corners */}
             <div
               onClick={handleMicClick}
-              style={{ width: '100%', maxWidth: '640px', height: '640px', cursor: !alwaysOn && status === 'idle' ? 'pointer' : 'default', position: 'relative' }}
+              style={{ flex: 1, cursor: !alwaysOn && status === 'idle' ? 'pointer' : 'default', position: 'relative' }}
             >
               <CenterHUD status={status} transcript={transcript} streamingText={streamingText} bootProgress={bootProgress} />
-            </div>
+              {!alwaysOn && status === 'idle' && (
+                <div style={{ position: 'absolute', bottom: '6%', left: '50%', transform: 'translateX(-50%)', fontFamily: 'Orbitron', fontSize: '10px', letterSpacing: '0.2em', color: 'rgba(0,212,255,0.4)' }}>
+                  CLICK TO ACTIVATE
+                </div>
+              )}
 
-            {/* Only the always-on toggle remains — everything else is out of frame */}
-            <button
-              onClick={toggleAlwaysOn}
-              style={{
-                position: 'absolute', bottom: '24px',
-                fontFamily: 'Share Tech Mono', fontSize: '9px', letterSpacing: '0.1em',
-                background: 'none', border: `1px solid ${alwaysOn ? '#22c55e' : 'rgba(0,212,255,0.3)'}`,
-                color: alwaysOn ? '#22c55e' : 'rgba(0,212,255,0.5)',
-                padding: '4px 14px', cursor: 'pointer', borderRadius: '2px',
-              }}
-            >
-              {alwaysOn ? '● ALWAYS LISTENING' : '○ CLICK TO TALK'}
-            </button>
+              {showCalculator && (
+                <div onClick={(e) => e.stopPropagation()}>
+                  <CalculatorPanel onClose={() => { playClick(); setShowCalculator(false); }} />
+                </div>
+              )}
+              {showTimerPanel && (
+                <div onClick={(e) => e.stopPropagation()}>
+                  <TimerPanel onClose={() => { playClick(); setShowTimerPanel(false); }} activeTimers={activeTimers} onAddTimer={startTimer} />
+                </div>
+              )}
+              {showNotebook && (
+                <div onClick={(e) => e.stopPropagation()}>
+                  <NotebookPanel onClose={() => { playClick(); setShowNotebook(false); }} />
+                </div>
+              )}
+            </div>
           </div>
-        )}
+
+          <div className="jarvis-panel-right" style={{ padding: '10px', overflowY: 'auto', borderLeft: '1px solid rgba(0,212,255,0.07)' }}>
+            <SystemTopology />
+            <SatelliteLink />
+            <AtmosphericData />
+            <SecurityStatus />
+            <SystemTerminal />
+          </div>
+        </div>
       </div>
 
       {pendingUrl && (
