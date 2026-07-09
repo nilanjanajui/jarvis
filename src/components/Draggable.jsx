@@ -15,13 +15,39 @@ export default function Draggable({ id, children, disabled }) {
     const [dragging, setDragging] = useState(false);
     const offsetRef = useRef({ x: 0, y: 0 });
     const posRef = useRef(pos);
+    const elRef = useRef(null);
+    const boundsRef = useRef(null); // { minX, maxX, minY, maxY }
 
     useEffect(() => { posRef.current = pos; }, [pos]);
 
+    const clamp = (next, bounds) => {
+        if (!bounds) return next;
+        return {
+            x: Math.min(Math.max(next.x, bounds.minX), bounds.maxX),
+            y: Math.min(Math.max(next.y, bounds.minY), bounds.maxY),
+        };
+    };
+
     const handlePointerDown = useCallback((e) => {
         if (disabled) return;
-        // Ignore drags starting on interactive elements (buttons, inputs, textareas)
         if (['BUTTON', 'INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
+
+        // Compute how far this panel is allowed to move in each direction,
+        // based on its CURRENT on-screen rect (which already includes any
+        // existing translate offset) minus the current pos, giving us the
+        // panel's untranslated "home" rect.
+        const rect = elRef.current.getBoundingClientRect();
+        const homeLeft = rect.left - posRef.current.x;
+        const homeTop = rect.top - posRef.current.y;
+        const width = rect.width;
+        const height = rect.height;
+
+        boundsRef.current = {
+            minX: -homeLeft,
+            minY: -homeTop,
+            maxX: window.innerWidth - width - homeLeft,
+            maxY: window.innerHeight - height - homeTop,
+        };
 
         setDragging(true);
         offsetRef.current = {
@@ -35,11 +61,11 @@ export default function Draggable({ id, children, disabled }) {
         if (!dragging) return;
 
         const handleMove = (e) => {
-            const next = {
+            const raw = {
                 x: e.clientX - offsetRef.current.x,
                 y: e.clientY - offsetRef.current.y,
             };
-            setPos(next);
+            setPos(clamp(raw, boundsRef.current));
         };
 
         const handleUp = () => {
@@ -65,6 +91,7 @@ export default function Draggable({ id, children, disabled }) {
 
     return (
         <div
+            ref={elRef}
             onPointerDown={handlePointerDown}
             onDoubleClick={resetPosition}
             style={{
