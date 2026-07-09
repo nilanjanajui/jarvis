@@ -1,7 +1,7 @@
 'use client';
 import { useState, useRef, useEffect, useCallback } from 'react';
 
-export default function Draggable({ id, children, disabled }) {
+export default function Draggable({ id, children, disabled, style }) {
     const [pos, setPos] = useState(() => {
         if (typeof window === 'undefined') return { x: 0, y: 0 };
         try {
@@ -28,26 +28,48 @@ export default function Draggable({ id, children, disabled }) {
         };
     };
 
-    const handlePointerDown = useCallback((e) => {
-        if (disabled) return;
-        if (['BUTTON', 'INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
-
-        // Compute how far this panel is allowed to move in each direction,
-        // based on its CURRENT on-screen rect (which already includes any
-        // existing translate offset) minus the current pos, giving us the
-        // panel's untranslated "home" rect.
+    // Compute how far this panel is allowed to move in each direction,
+    // based on its CURRENT on-screen rect (which already includes any
+    // existing translate offset) minus the current pos, giving us the
+    // panel's untranslated "home" rect.
+    const computeBounds = useCallback(() => {
+        if (!elRef.current) return null;
         const rect = elRef.current.getBoundingClientRect();
         const homeLeft = rect.left - posRef.current.x;
         const homeTop = rect.top - posRef.current.y;
         const width = rect.width;
         const height = rect.height;
 
-        boundsRef.current = {
+        return {
             minX: -homeLeft,
             minY: -homeTop,
             maxX: window.innerWidth - width - homeLeft,
             maxY: window.innerHeight - height - homeTop,
         };
+    }, []);
+
+    // Re-clamp on mount (fixes positions saved to localStorage from before
+    // clamping existed, or saved on a wider screen) and whenever the window
+    // is resized (fixes panels stranded off-screen after a resize).
+    useEffect(() => {
+        const reclamp = () => {
+            const bounds = computeBounds();
+            if (!bounds) return;
+            setPos((p) => clamp(p, bounds));
+        };
+        reclamp();
+        window.addEventListener('resize', reclamp);
+        return () => window.removeEventListener('resize', reclamp);
+    }, [computeBounds]);
+
+    const handlePointerDown = useCallback((e) => {
+        if (disabled) return;
+        // Ignore drags starting on any interactive control, however it's
+        // implemented (real <button>/<input>, or a div/span with onClick) —
+        // add data-no-drag to any clickable element inside a Draggable panel.
+        if (e.target.closest('button, input, textarea, select, [data-no-drag]')) return;
+
+        boundsRef.current = computeBounds();
 
         setDragging(true);
         offsetRef.current = {
@@ -55,7 +77,7 @@ export default function Draggable({ id, children, disabled }) {
             y: e.clientY - posRef.current.y,
         };
         e.preventDefault();
-    }, [disabled]);
+    }, [disabled, computeBounds]);
 
     useEffect(() => {
         if (!dragging) return;
@@ -95,11 +117,12 @@ export default function Draggable({ id, children, disabled }) {
             onPointerDown={handlePointerDown}
             onDoubleClick={resetPosition}
             style={{
+                position: 'relative',
+                ...style,
                 transform: `translate(${pos.x}px, ${pos.y}px)`,
                 cursor: disabled ? 'default' : (dragging ? 'grabbing' : 'grab'),
                 transition: dragging ? 'none' : 'transform 0.15s ease',
-                position: 'relative',
-                zIndex: dragging ? 50 : 'auto',
+                zIndex: dragging ? (style?.zIndex ? style.zIndex + 50 : 50) : (style?.zIndex ?? 'auto'),
                 userSelect: dragging ? 'none' : 'auto',
             }}
             title={disabled ? '' : 'Drag to move — double-click to reset position'}

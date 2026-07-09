@@ -28,6 +28,13 @@ import Draggable from '@/components/Draggable';
 const AGENT = 'http://localhost:5001';
 
 
+const ids = [
+  'neural-sync', 'bio-metrics', 'audio-viz', 'system-log', 'active-timers',
+  'system-topology', 'satellite-link', 'atmospheric-data', 'security-status', 'system-terminal',
+  'calculator-panel', 'timer-panel', 'notebook-panel',
+];
+
+
 export default function JarvisPage() {
   const [status, setStatus] = useState('idle');
   const [transcript, setTranscript] = useState('');

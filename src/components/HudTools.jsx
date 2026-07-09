@@ -1,10 +1,12 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
+import Draggable from './Draggable';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Shared panel wrapper — floating, semi-transparent, docked to a corner
+// Shared panel wrapper — floating, semi-transparent, docked to a corner,
+// and draggable by its header (falls back to its default corner on double-click).
 // ─────────────────────────────────────────────────────────────────────────────
-function Panel({ corner, width, title, onClose, children }) {
+function Panel({ corner, width, title, onClose, children, dragId }) {
     const pos = {
         'top-right': { top: '10px', right: '10px' },
         'bottom-left': { bottom: '10px', left: '10px' },
@@ -25,32 +27,33 @@ function Panel({ corner, width, title, onClose, children }) {
     }[corner];
 
     return (
-        <div style={{
-            position: 'absolute', ...pos, width,
-            background: 'rgba(0,12,24,0.88)',
-            border: '1px solid rgba(0,212,255,0.28)',
-            boxShadow: '0 8px 28px rgba(0,212,255,0.1), 0 0 24px rgba(0,212,255,0.08)',
-            backdropFilter: 'blur(4px)',
-            padding: '12px',
-            zIndex: 5,
-            animation: floatAnim,
-            animationDelay: floatDelay,
-            willChange: 'transform',
-            clipPath: 'polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px))',
-        }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                <span style={{ fontFamily: 'Orbitron', fontSize: '8px', letterSpacing: '0.18em', color: 'rgba(0,212,255,0.6)' }}>
-                    {title}
-                </span>
-                <span
-                    onClick={onClose}
-                    style={{ fontFamily: 'Orbitron', fontSize: '11px', color: 'rgba(0,212,255,0.5)', cursor: 'pointer', lineHeight: 1, padding: '0 2px' }}
-                >
-                    ×
-                </span>
+        <Draggable id={dragId} style={{ position: 'absolute', ...pos, width, zIndex: 5 }}>
+            <div style={{
+                background: 'rgba(0,12,24,0.88)',
+                border: '1px solid rgba(0,212,255,0.28)',
+                boxShadow: '0 8px 28px rgba(0,212,255,0.1), 0 0 24px rgba(0,212,255,0.08)',
+                backdropFilter: 'blur(4px)',
+                padding: '12px',
+                animation: floatAnim,
+                animationDelay: floatDelay,
+                willChange: 'transform',
+                clipPath: 'polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px))',
+            }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                    <span style={{ fontFamily: 'Orbitron', fontSize: '8px', letterSpacing: '0.18em', color: 'rgba(0,212,255,0.6)' }}>
+                        {title}
+                    </span>
+                    <span
+                        onClick={onClose}
+                        data-no-drag
+                        style={{ fontFamily: 'Orbitron', fontSize: '11px', color: 'rgba(0,212,255,0.5)', cursor: 'pointer', lineHeight: 1, padding: '0 2px' }}
+                    >
+                        ×
+                    </span>
+                </div>
+                {children}
             </div>
-            {children}
-        </div>
+        </Draggable>
     );
 }
 
@@ -105,7 +108,7 @@ export function CalculatorPanel({ onClose }) {
     ];
 
     return (
-        <Panel corner="top-right" width="220px" title="CALCULATOR" onClose={onClose}>
+        <Panel corner="top-right" width="220px" title="CALCULATOR" onClose={onClose} dragId="calculator-panel">
             <div style={{
                 background: 'rgba(0,10,20,0.6)', border: '1px solid rgba(0,212,255,0.2)',
                 padding: '10px 12px', marginBottom: '8px', minHeight: '54px',
@@ -127,7 +130,7 @@ export function CalculatorPanel({ onClose }) {
                                 : 'default';
                     const span = k === '0' ? { gridColumn: 'span 2' } : {};
                     return (
-                        <div key={i} onClick={() => press(k)} style={{ ...keyStyle(variant), ...span }}>
+                        <div key={i} onClick={() => press(k)} data-no-drag style={{ ...keyStyle(variant), ...span }}>
                             {k}
                         </div>
                     );
@@ -163,7 +166,7 @@ export function TimerPanel({ onClose, activeTimers, onAddTimer }) {
     const primary = activeTimers[0];
 
     return (
-        <Panel corner="bottom-right" width="230px" title="TIMER" onClose={onClose}>
+        <Panel corner="bottom-right" width="230px" title="TIMER" onClose={onClose} dragId="timer-panel">
             {/* Digital watch display */}
             <div style={{
                 background: '#020608',
@@ -194,7 +197,7 @@ export function TimerPanel({ onClose, activeTimers, onAddTimer }) {
             {/* Presets */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px', marginBottom: '8px' }}>
                 {presets.map((p) => (
-                    <div key={p.label} onClick={() => onAddTimer(p.seconds, p.label)} style={{ ...keyStyle('default'), fontSize: '10px', padding: '7px 0' }}>
+                    <div key={p.label} onClick={() => onAddTimer(p.seconds, p.label)} data-no-drag style={{ ...keyStyle('default'), fontSize: '10px', padding: '7px 0' }}>
                         {p.label}
                     </div>
                 ))}
@@ -213,7 +216,7 @@ export function TimerPanel({ onClose, activeTimers, onAddTimer }) {
                     onChange={(e) => setCustomSec(e.target.value)}
                     style={{ width: '40px', background: 'rgba(0,10,20,0.6)', border: '1px solid rgba(0,212,255,0.25)', color: '#00d4ff', fontFamily: 'Share Tech Mono', fontSize: '11px', padding: '6px', textAlign: 'center' }}
                 />
-                <div onClick={startCustom} style={{ ...keyStyle('equal'), flex: 1, padding: '6px 0', fontSize: '10px' }}>
+                <div onClick={startCustom} data-no-drag style={{ ...keyStyle('equal'), flex: 1, padding: '6px 0', fontSize: '10px' }}>
                     GO
                 </div>
             </div>
@@ -284,7 +287,7 @@ export function NotebookPanel({ onClose }) {
     };
 
     return (
-        <Panel corner="bottom-left" width="240px" title="NOTEBOOK" onClose={onClose}>
+        <Panel corner="bottom-left" width="240px" title="NOTEBOOK" onClose={onClose} dragId="notebook-panel">
             <textarea
                 value={text}
                 onChange={handleChange}
@@ -300,7 +303,7 @@ export function NotebookPanel({ onClose }) {
                 <span style={{ fontFamily: 'Share Tech Mono', fontSize: '8px', color: 'rgba(0,212,255,0.35)' }}>
                     {saved ? '● saved' : '○ saving...'}
                 </span>
-                <span onClick={clearNotes} style={{ fontFamily: 'Share Tech Mono', fontSize: '8px', color: 'rgba(239,68,68,0.6)', cursor: 'pointer' }}>
+                <span onClick={clearNotes} data-no-drag style={{ fontFamily: 'Share Tech Mono', fontSize: '8px', color: 'rgba(239,68,68,0.6)', cursor: 'pointer' }}>
                     clear
                 </span>
             </div>
