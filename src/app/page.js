@@ -23,6 +23,7 @@ import {
   playGlitch,
   playBootSound as playBootSoundLib,
 } from '@/lib/hudSounds';
+import Draggable from '@/components/Draggable';
 
 const AGENT = 'http://localhost:5001';
 
@@ -569,6 +570,16 @@ System initialization complete. All core modules are online and operating within
     safeStart();
   };
 
+  const resetAllPositions = () => {
+    playClick();
+    const ids = [
+      'neural-sync', 'bio-metrics', 'audio-viz', 'system-log', 'active-timers',
+      'system-topology', 'satellite-link', 'atmospheric-data', 'security-status', 'system-terminal',
+    ];
+    ids.forEach((id) => localStorage.removeItem(`jarvis-pos-${id}`));
+    window.location.reload(); // simplest way to force all Draggable components to re-read cleared state
+  };
+
   const statusColor = {
     idle: '#00d4ff',
     listening: '#22c55e',
@@ -668,22 +679,36 @@ System initialization complete. All core modules are online and operating within
               </button>
             </>
           )}
+
+          <span style={{ color: 'rgba(0,212,255,0.2)' }}>|</span>
+          <button
+            onClick={resetAllPositions}
+            style={{
+              fontFamily: 'Share Tech Mono', fontSize: '11px', letterSpacing: '0.1em',
+              background: 'none', border: '1px solid rgba(0,212,255,0.25)',
+              color: 'rgba(0,212,255,0.5)', padding: '2px 10px', cursor: 'pointer', borderRadius: '2px',
+            }}
+          >
+            RESET LAYOUT
+          </button>
         </div>
 
         {/* Layout */}
         <div className="jarvis-main-grid" style={{ flex: 1 }}>
           <div className="jarvis-panel-left">
-            <NeuralSync />
-            <BioMetrics />
-            <AudioVisualizer />
-            <SystemLog extraLine={logLine} />
+            <Draggable id="neural-sync"><NeuralSync /></Draggable>
+            <Draggable id="bio-metrics"><BioMetrics /></Draggable>
+            <Draggable id="audio-viz"><AudioVisualizer /></Draggable>
+            <Draggable id="system-log"><SystemLog extraLine={logLine} /></Draggable>
             {activeTimers.length > 0 && (
-              <div className="hud-card" style={{ marginTop: '8px' }}>
-                <div className="hud-label">Active Timers</div>
-                {activeTimers.map((t) => (
-                  <TimerRow key={t.id} label={t.label} endsAt={t.endsAt} />
-                ))}
-              </div>
+              <Draggable id="active-timers">
+                <div className="hud-card" style={{ marginTop: '8px' }}>
+                  <div className="hud-label">Active Timers</div>
+                  {activeTimers.map((t) => (
+                    <TimerRow key={t.id} label={t.label} endsAt={t.endsAt} />
+                  ))}
+                </div>
+              </Draggable>
             )}
           </div>
 
@@ -761,11 +786,11 @@ System initialization complete. All core modules are online and operating within
           </div>
 
           <div className="jarvis-panel-right" style={{ padding: '10px', overflowY: 'auto', borderLeft: '1px solid rgba(0,212,255,0.07)' }}>
-            <SystemTopology />
-            <SatelliteLink />
-            <AtmosphericData />
-            <SecurityStatus />
-            <SystemTerminal />
+            <Draggable id="system-topology"><SystemTopology /></Draggable>
+            <Draggable id="satellite-link"><SatelliteLink /></Draggable>
+            <Draggable id="atmospheric-data"><AtmosphericData /></Draggable>
+            <Draggable id="security-status"><SecurityStatus /></Draggable>
+            <Draggable id="system-terminal"><SystemTerminal /></Draggable>
           </div>
         </div>
       </div>
