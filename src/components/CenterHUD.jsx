@@ -6,8 +6,7 @@ function getGreeting() {
     const h = new Date().getHours();
     if (h < 12) return 'GOOD MORNING';
     if (h < 17) return 'GOOD AFTERNOON';
-    if (h < 21) return 'GOOD NIGHT';
-    return 'GOOD NIGHT';
+    return 'GOOD EVENING';
 }
 
 export default function CenterHUD({ status, transcript, streamingText, bootProgress }) {

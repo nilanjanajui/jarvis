@@ -508,14 +508,18 @@ body {
 .jarvis-main-grid {
   display: grid;
   grid-template-columns: 228px 1fr 228px;
-  overflow: hidden;
+  overflow: visible;
   min-height: 0;
+  position: relative;
+  z-index: 1;
 }
 
 .jarvis-panel-left,
 .jarvis-panel-right {
   padding: 10px;
-  overflow-y: auto;
+  overflow: visible;
+  position: relative;
+  z-index: 20;
 }
 
 .jarvis-panel-left {
@@ -530,6 +534,8 @@ body {
   display: flex;
   flex-direction: column;
   height: 100%;
+  position: relative;
+  z-index: 1;
 }
 
 /* Mobile: stack vertically, center HUD first, panels scroll below */

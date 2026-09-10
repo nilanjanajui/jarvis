@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import Navbar from '@/components/Navbar';
 import SettingsPanel from '@/components/SettingsPanel';
+import AboutModal from '@/components/AboutModal';
 import NeuralSync from '@/components/NeuralSync';
 import BioMetrics from '@/components/BioMetrics';
 import AudioVisualizer from '@/components/AudioVisualizer';
@@ -54,9 +55,28 @@ export default function JarvisPage() {
   const [alwaysOnDefault, setAlwaysOnDefault] = useState(false);
   const [voiceId, setVoiceId] = useState(DEFAULT_VOICE_ID);
 
+  // Layout version — bump this string whenever the Draggable system changes
+  // to auto-clear any stale off-screen saved positions.
+  const LAYOUT_VERSION = 'v4-fixed';
+
   useEffect(() => {
     const t = setTimeout(() => {
       setMounted(true);
+
+      // Auto-clear panel positions if layout version changed
+      try {
+        const savedLayoutVer = localStorage.getItem('jarvis-layout-version');
+        if (savedLayoutVer !== LAYOUT_VERSION) {
+          const panelIds = [
+            'neural-sync', 'bio-metrics', 'audio-viz', 'system-log', 'active-timers',
+            'system-topology', 'satellite-link', 'atmospheric-data', 'security-status',
+            'system-terminal', 'calculator-panel', 'timer-panel', 'notebook-panel',
+          ];
+          panelIds.forEach((id) => localStorage.removeItem(`jarvis-pos-${id}`));
+          localStorage.setItem('jarvis-layout-version', LAYOUT_VERSION);
+        }
+      } catch {}
+
       try {
         const saved = localStorage.getItem('jarvis-history');
         if (saved) setMessages(JSON.parse(saved));
@@ -74,6 +94,7 @@ export default function JarvisPage() {
       } catch {}
     }, 0);
     return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [activeTimers, setActiveTimers] = useState([]);
   const [showCalculator, setShowCalculator] = useState(false);
@@ -427,8 +448,7 @@ export default function JarvisPage() {
     const h = new Date().getHours();
     const timeGreet =
       h < 12 ? 'Good morning' :
-        h < 17 ? 'Good afternoon' :
-          h < 21 ? 'Good evening' : 'Good night';
+        h < 17 ? 'Good afternoon' : 'Good evening';
 
     // Play mechanical boot sound and show the boot HUD state
     const duration = playBootSoundLib();
@@ -632,9 +652,10 @@ System initialization complete. All core modules are online and operating within
     const ids = [
       'neural-sync', 'bio-metrics', 'audio-viz', 'system-log', 'active-timers',
       'system-topology', 'satellite-link', 'atmospheric-data', 'security-status', 'system-terminal',
+      'calculator-panel', 'timer-panel', 'notebook-panel',
     ];
     ids.forEach((id) => localStorage.removeItem(`jarvis-pos-${id}`));
-    window.location.reload(); // simplest way to force all Draggable components to re-read cleared state
+    window.location.reload();
   };
 
   const statusColor = {
@@ -684,17 +705,28 @@ System initialization complete. All core modules are online and operating within
       <div className="jarvis-corner-bracket" style={{ bottom: 14, left: 14, borderBottom: '2px solid', borderLeft: '2px solid' }} />
       <div className="jarvis-corner-bracket" style={{ bottom: 14, right: 14, borderBottom: '2px solid', borderRight: '2px solid' }} />
 
-      {/* App layer */}
-      <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', height: '100vh' }}>
-        <Navbar
-          activeItem={activeNav}
-          onNavigate={setActiveNav}
-          onSettingsClick={() => { playClick(); setSettingsOpenSeq((n) => n + 1); setShowSettings(true); setActiveNav('SETTINGS'); }}
-          settingsOpen={showSettings}
-        />
+      {/* App layer — flex column pinned to screen, flexShrink: 0 on headers so they never collapse */}
+      <div style={{ position: 'relative', zIndex: 10, display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw', overflow: 'hidden' }}>
+        <div style={{ flexShrink: 0 }}>
+          <Navbar
+            activeItem={activeNav}
+            onNavigate={(nav) => {
+              playClick();
+              setActiveNav(nav);
+              if (nav === 'SETTINGS') setShowSettings(true);
+            }}
+            onSettingsClick={() => {
+              playClick();
+              setSettingsOpenSeq((n) => n + 1);
+              setShowSettings(true);
+              setActiveNav('SETTINGS');
+            }}
+            settingsOpen={showSettings}
+          />
+        </div>
 
         {/* Status bar */}
-        <div className="jarvis-status-bar" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '14px', padding: '4px 0', borderBottom: '1px solid rgba(0,212,255,0.06)', background: 'rgba(0,5,12,0.88)', flexWrap: 'wrap' }}>
+        <div className="jarvis-status-bar" style={{ flexShrink: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '14px', padding: '6px 16px', borderBottom: '1px solid rgba(0,212,255,0.12)', background: 'rgba(0,5,12,0.92)', flexWrap: 'wrap' }}>
           <span style={{ fontFamily: 'Share Tech Mono', fontSize: '11px', color: agentConnected ? '#22c55e' : 'rgba(0,212,255,0.3)', letterSpacing: '0.1em' }}>
             {agentConnected ? '● AGENT ONLINE' : '○ AGENT OFFLINE'}
           </span>
@@ -748,11 +780,52 @@ System initialization complete. All core modules are online and operating within
           >
             RESET LAYOUT
           </button>
+          <span style={{ color: 'rgba(0,212,255,0.2)' }}>|</span>
+          {/* Tool panel toggles — CALC / TIMER / NOTES */}
+          <button
+            onClick={() => { playClick(); setShowCalculator((v) => !v); }}
+            style={{
+              fontFamily: 'Orbitron', fontSize: '10px', letterSpacing: '0.15em',
+              background: showCalculator ? 'rgba(0,212,255,0.2)' : 'none',
+              border: `1px solid ${showCalculator ? '#00d4ff' : 'rgba(0,212,255,0.3)'}`,
+              color: showCalculator ? '#00d4ff' : 'rgba(0,212,255,0.7)',
+              padding: '2px 10px', cursor: 'pointer', borderRadius: '2px', transition: 'all 0.2s',
+              boxShadow: showCalculator ? '0 0 10px rgba(0,212,255,0.3)' : 'none',
+            }}
+          >
+            CALC
+          </button>
+          <button
+            onClick={() => { playClick(); setShowTimerPanel((v) => !v); }}
+            style={{
+              fontFamily: 'Orbitron', fontSize: '10px', letterSpacing: '0.15em',
+              background: showTimerPanel ? 'rgba(0,212,255,0.2)' : 'none',
+              border: `1px solid ${showTimerPanel ? '#00d4ff' : 'rgba(0,212,255,0.3)'}`,
+              color: showTimerPanel ? '#00d4ff' : 'rgba(0,212,255,0.7)',
+              padding: '2px 10px', cursor: 'pointer', borderRadius: '2px', transition: 'all 0.2s',
+              boxShadow: showTimerPanel ? '0 0 10px rgba(0,212,255,0.3)' : 'none',
+            }}
+          >
+            TIMER
+          </button>
+          <button
+            onClick={() => { playClick(); setShowNotebook((v) => !v); }}
+            style={{
+              fontFamily: 'Orbitron', fontSize: '10px', letterSpacing: '0.15em',
+              background: showNotebook ? 'rgba(0,212,255,0.2)' : 'none',
+              border: `1px solid ${showNotebook ? '#00d4ff' : 'rgba(0,212,255,0.3)'}`,
+              color: showNotebook ? '#00d4ff' : 'rgba(0,212,255,0.7)',
+              padding: '2px 10px', cursor: 'pointer', borderRadius: '2px', transition: 'all 0.2s',
+              boxShadow: showNotebook ? '0 0 10px rgba(0,212,255,0.3)' : 'none',
+            }}
+          >
+            NOTES
+          </button>
         </div>
 
-        {/* Layout */}
-        <div className="jarvis-main-grid" style={{ flex: 1 }}>
-          <div className="jarvis-panel-left">
+        {/* 3-Column Dashboard Layout */}
+        <div className="jarvis-main-grid" style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+          <div className="jarvis-panel-left" style={{ overflowY: 'auto', position: 'relative', zIndex: 10 }}>
             <Draggable id="neural-sync"><NeuralSync /></Draggable>
             <Draggable id="bio-metrics"><BioMetrics /></Draggable>
             <Draggable id="audio-viz"><AudioVisualizer /></Draggable>
@@ -769,50 +842,7 @@ System initialization complete. All core modules are online and operating within
             )}
           </div>
 
-
-          <div className="jarvis-panel-center">
-
-            {/* Toggle buttons — panels layer on top, sphere stays visible always */}
-            <div className="jarvis-tool-toggles" style={{ display: 'flex', justifyContent: 'center', gap: '8px', padding: '10px 0' }}>
-              <button
-                onClick={() => { playClick(); setShowCalculator((v) => !v); }}
-                style={{
-                  fontFamily: 'Orbitron', fontSize: '11px', letterSpacing: '0.15em',
-                  background: showCalculator ? 'rgba(0,212,255,0.12)' : 'none',
-                  border: `1px solid ${showCalculator ? '#00d4ff' : 'rgba(0,212,255,0.2)'}`,
-                  color: showCalculator ? '#00d4ff' : 'rgba(0,212,255,0.4)',
-                  padding: '5px 14px', cursor: 'pointer', transition: 'all 0.2s',
-                }}
-              >
-                CALC
-              </button>
-              <button
-                onClick={() => { playClick(); setShowTimerPanel((v) => !v); }}
-                style={{
-                  fontFamily: 'Orbitron', fontSize: '11px', letterSpacing: '0.15em',
-                  background: showTimerPanel ? 'rgba(0,212,255,0.12)' : 'none',
-                  border: `1px solid ${showTimerPanel ? '#00d4ff' : 'rgba(0,212,255,0.2)'}`,
-                  color: showTimerPanel ? '#00d4ff' : 'rgba(0,212,255,0.4)',
-                  padding: '5px 14px', cursor: 'pointer', transition: 'all 0.2s',
-                }}
-              >
-                TIMER
-              </button>
-              <button
-                onClick={() => { playClick(); setShowNotebook((v) => !v); }}
-                style={{
-                  fontFamily: 'Orbitron', fontSize: '11px', letterSpacing: '0.15em',
-                  background: showNotebook ? 'rgba(0,212,255,0.12)' : 'none',
-                  border: `1px solid ${showNotebook ? '#00d4ff' : 'rgba(0,212,255,0.2)'}`,
-                  color: showNotebook ? '#00d4ff' : 'rgba(0,212,255,0.4)',
-                  padding: '5px 14px', cursor: 'pointer', transition: 'all 0.2s',
-                }}
-              >
-                NOTES
-              </button>
-            </div>
-
-            {/* Sphere always visible — panels float on top in corners */}
+          <div className="jarvis-panel-center" style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
             <div
               onClick={handleMicClick}
               style={{ flex: 1, cursor: !alwaysOn && status === 'idle' ? 'pointer' : 'default', position: 'relative' }}
@@ -825,24 +855,18 @@ System initialization complete. All core modules are online and operating within
               )}
 
               {showCalculator && (
-                <div onClick={(e) => e.stopPropagation()}>
-                  <CalculatorPanel onClose={() => { playClick(); setShowCalculator(false); }} />
-                </div>
+                <CalculatorPanel onClose={() => { playClick(); setShowCalculator(false); }} />
               )}
               {showTimerPanel && (
-                <div onClick={(e) => e.stopPropagation()}>
-                  <TimerPanel onClose={() => { playClick(); setShowTimerPanel(false); }} activeTimers={activeTimers} onAddTimer={startTimer} />
-                </div>
+                <TimerPanel onClose={() => { playClick(); setShowTimerPanel(false); }} activeTimers={activeTimers} onAddTimer={startTimer} />
               )}
               {showNotebook && (
-                <div onClick={(e) => e.stopPropagation()}>
-                  <NotebookPanel onClose={() => { playClick(); setShowNotebook(false); }} />
-                </div>
+                <NotebookPanel onClose={() => { playClick(); setShowNotebook(false); }} />
               )}
             </div>
           </div>
 
-          <div className="jarvis-panel-right" style={{ padding: '10px', overflowY: 'auto', borderLeft: '1px solid rgba(0,212,255,0.07)' }}>
+          <div className="jarvis-panel-right" style={{ padding: '10px', overflowY: 'auto', borderLeft: '1px solid rgba(0,212,255,0.07)', position: 'relative', zIndex: 10 }}>
             <Draggable id="system-topology"><SystemTopology /></Draggable>
             <Draggable id="satellite-link"><SatelliteLink /></Draggable>
             <Draggable id="atmospheric-data"><AtmosphericData /></Draggable>
@@ -871,10 +895,14 @@ System initialization complete. All core modules are online and operating within
       )}
       <audio ref={audioRef} />
 
-      {showSettings && (
+      {activeNav === 'ABOUT' && (
+        <AboutModal onClose={() => { playClick(); setActiveNav('DASHBOARD'); }} />
+      )}
+
+      {(showSettings || activeNav === 'SETTINGS') && (
         <SettingsPanel
           key={settingsOpenSeq}
-          open={showSettings}
+          open={showSettings || activeNav === 'SETTINGS'}
           onClose={() => { playClick(); setShowSettings(false); setActiveNav('DASHBOARD'); }}
           alwaysOnDefault={alwaysOnDefault}
           onToggleAlwaysOnDefault={toggleAlwaysOnDefault}

@@ -1,42 +1,128 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
-import Draggable from './Draggable';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Shared panel wrapper — floating, semi-transparent, docked to a corner,
-// and draggable by its header (falls back to its default corner on double-click).
+// Self-contained fixed-position draggable tool panel.
+// Does NOT use the column Draggable — it manages its own position:fixed state
+// so it is always above the Three.js WebGL canvas regardless of stacking context.
 // ─────────────────────────────────────────────────────────────────────────────
 function Panel({ corner, width, title, onClose, children, dragId }) {
-    const pos = {
-        'top-right': { top: '10px', right: '10px' },
-        'bottom-left': { bottom: '10px', left: '10px' },
-        'bottom-right': { bottom: '10px', right: '10px' },
-    }[corner];
+    const W = parseInt(width, 10) || 220;
+    const MARGIN = 14;
 
-    // Distinct animation per corner so panels don't move in sync
-    const floatAnim = {
-        'top-right': 'float-panel-1 7s ease-in-out infinite',
-        'bottom-left': 'float-panel-2 8.5s ease-in-out infinite',
-        'bottom-right': 'float-panel-3 6.5s ease-in-out infinite',
-    }[corner];
+    // Compute initial corner position in viewport space
+    const getCornerPos = useCallback(() => {
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        switch (corner) {
+            case 'top-right':    return { left: vw - W - MARGIN, top: MARGIN + 60 };
+            case 'bottom-right': return { left: vw - W - MARGIN, top: vh - 300 - MARGIN };
+            case 'bottom-left':  return { left: MARGIN,           top: vh - 280 - MARGIN };
+            default:             return { left: MARGIN,           top: MARGIN + 60 };
+        }
+    }, [corner, W]);
 
-    const floatDelay = {
-        'top-right': '0s',
-        'bottom-left': '-2.3s',
-        'bottom-right': '-4.1s',
-    }[corner];
+    const [pos, setPos] = useState(null);       // null = not yet initialised
+    const [dragging, setDragging] = useState(false);
+    const posRef    = useRef(null);
+    const offsetRef = useRef({ x: 0, y: 0 });
+    const boundsRef = useRef(null);
+
+    // Init: try saved position, fall back to corner
+    useEffect(() => {
+        let initial = getCornerPos();
+        try {
+            const saved = localStorage.getItem(`jarvis-pos-${dragId}`);
+            if (saved) {
+                const p = JSON.parse(saved);
+                if (typeof p.left === 'number' && isFinite(p.left)) initial = p;
+            }
+        } catch {}
+        posRef.current = initial;
+        setPos(initial);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [dragId]);
+
+    // Pointer-down: start drag
+    const onPointerDown = useCallback((e) => {
+        if (e.target.closest('button, input, textarea, select, [data-no-drag]')) return;
+        const cur = posRef.current;
+        if (!cur) return;
+        boundsRef.current = {
+            minL: 0, minT: 0,
+            maxL: window.innerWidth  - W,
+            maxT: window.innerHeight - 50,
+        };
+        offsetRef.current = { x: e.clientX - cur.left, y: e.clientY - cur.top };
+        setDragging(true);
+        e.preventDefault();
+    }, [W]);
+
+    useEffect(() => {
+        if (!dragging) return;
+        const move = (e) => {
+            const { minL, minT, maxL, maxT } = boundsRef.current;
+            const next = {
+                left: Math.round(Math.min(Math.max(e.clientX - offsetRef.current.x, minL), maxL)),
+                top:  Math.round(Math.min(Math.max(e.clientY - offsetRef.current.y, minT), maxT)),
+            };
+            posRef.current = next;
+            setPos(next);
+        };
+        const up = (e) => {
+            setDragging(false);
+            const { minL, minT, maxL, maxT } = boundsRef.current;
+            const next = {
+                left: Math.round(Math.min(Math.max(e.clientX - offsetRef.current.x, minL), maxL)),
+                top:  Math.round(Math.min(Math.max(e.clientY - offsetRef.current.y, minT), maxT)),
+            };
+            posRef.current = next;
+            setPos(next);
+            try { localStorage.setItem(`jarvis-pos-${dragId}`, JSON.stringify(next)); } catch {}
+        };
+        window.addEventListener('pointermove', move);
+        window.addEventListener('pointerup',   up);
+        return () => {
+            window.removeEventListener('pointermove', move);
+            window.removeEventListener('pointerup',   up);
+        };
+    }, [dragging, dragId]);
+
+    // Double-click: snap back to corner
+    const onDoubleClick = useCallback((e) => {
+        e.stopPropagation();
+        const next = getCornerPos();
+        posRef.current = next;
+        setPos(next);
+        try { localStorage.removeItem(`jarvis-pos-${dragId}`); } catch {}
+    }, [dragId, getCornerPos]);
+
+    if (!pos) return null;   // not yet mounted client-side
 
     return (
-        <Draggable id={dragId} style={{ position: 'absolute', ...pos, width, zIndex: 5 }}>
+        <div
+            onPointerDown={onPointerDown}
+            onDoubleClick={onDoubleClick}
+            style={{
+                position: 'fixed',
+                left: pos.left,
+                top:  pos.top,
+                width: W,
+                zIndex: dragging ? 9999 : 300,
+                cursor: dragging ? 'grabbing' : 'grab',
+                userSelect: 'none',
+                transition: dragging ? 'none' : 'box-shadow 0.2s',
+                boxShadow: dragging
+                    ? '0 0 40px rgba(0,212,255,0.4), 0 12px 48px rgba(0,0,0,0.75)'
+                    : '0 8px 28px rgba(0,212,255,0.1)',
+            }}
+            title="Drag to move · double-click to reset"
+        >
             <div style={{
-                background: 'rgba(0,12,24,0.88)',
+                background: 'rgba(0,12,24,0.92)',
                 border: '1px solid rgba(0,212,255,0.28)',
-                boxShadow: '0 8px 28px rgba(0,212,255,0.1), 0 0 24px rgba(0,212,255,0.08)',
-                backdropFilter: 'blur(4px)',
+                backdropFilter: 'blur(6px)',
                 padding: '12px',
-                animation: floatAnim,
-                animationDelay: floatDelay,
-                willChange: 'transform',
                 clipPath: 'polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px))',
             }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
@@ -53,7 +139,7 @@ function Panel({ corner, width, title, onClose, children, dragId }) {
                 </div>
                 {children}
             </div>
-        </Draggable>
+        </div>
     );
 }
 
