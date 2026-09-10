@@ -22,7 +22,9 @@ import {
   playAccessDenied,
   playGlitch,
   playBootSound as playBootSoundLib,
+  startAmbientHum,
 } from '@/lib/hudSounds';
+import { saveFact } from '@/lib/memory';
 import Draggable from '@/components/Draggable';
 
 const AGENT = 'http://localhost:5001';
@@ -39,15 +41,8 @@ export default function JarvisPage() {
   const [status, setStatus] = useState('idle');
   const [transcript, setTranscript] = useState('');
   const [streamingText, setStreamingText] = useState('');
-  const [messages, setMessages] = useState(() => {
-    if (typeof window === 'undefined') return [];
-    try {
-      const saved = localStorage.getItem('jarvis-history');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
+  const [messages, setMessages] = useState([]);
+  const [mounted, setMounted] = useState(false);
   const [logLine, setLogLine] = useState('');
   const [elevenLabsOk, setElevenLabsOk] = useState(true);
   const [agentConnected, setAgentConnected] = useState(false);
@@ -56,26 +51,35 @@ export default function JarvisPage() {
   const [pendingUrl, setPendingUrl] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
   const [settingsOpenSeq, setSettingsOpenSeq] = useState(0);
-  const [alwaysOnDefault, setAlwaysOnDefault] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    try {
-      return localStorage.getItem('jarvis-always-on-default') === 'true';
-    } catch {
-      return false;
-    }
-  });
-  const [voiceId, setVoiceId] = useState(() => {
-    if (typeof window === 'undefined') return DEFAULT_VOICE_ID;
-    try {
-      return localStorage.getItem('jarvis-voice-id') || DEFAULT_VOICE_ID;
-    } catch {
-      return DEFAULT_VOICE_ID;
-    }
-  });
+  const [alwaysOnDefault, setAlwaysOnDefault] = useState(false);
+  const [voiceId, setVoiceId] = useState(DEFAULT_VOICE_ID);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setMounted(true);
+      try {
+        const saved = localStorage.getItem('jarvis-history');
+        if (saved) setMessages(JSON.parse(saved));
+      } catch (e) {
+        console.error('Failed to load history:', e);
+      }
+      try {
+        if (localStorage.getItem('jarvis-always-on-default') === 'true') {
+          setAlwaysOnDefault(true);
+        }
+      } catch {}
+      try {
+        const savedVoice = localStorage.getItem('jarvis-voice-id');
+        if (savedVoice) setVoiceId(savedVoice);
+      } catch {}
+    }, 0);
+    return () => clearTimeout(t);
+  }, []);
   const [activeTimers, setActiveTimers] = useState([]);
   const [showCalculator, setShowCalculator] = useState(false);
   const [showTimerPanel, setShowTimerPanel] = useState(false);
   const [showNotebook, setShowNotebook] = useState(false);
+  const [pendingCommand, setPendingCommand] = useState(null);
   const [particles, setParticles] = useState([]);
   const [activeNav, setActiveNav] = useState('DASHBOARD');
   const [bootProgress, setBootProgress] = useState(0);
@@ -246,10 +250,19 @@ export default function JarvisPage() {
     if (!action) return;
 
     if (action.type === 'open_url') {
+      if (agentConnected) {
+        fetch(`${AGENT}/open-url`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: action.url }),
+        }).catch(() => {});
+        setLogLine(`Opening ${action.site_name || action.url}`);
+        return;
+      }
       const win = window.open(action.url, '_blank');
       if (!win || win.closed || typeof win.closed === 'undefined') {
         setPendingUrl({ url: action.url, name: action.site_name || action.url });
-        setLogLine(`Popup blocked — confirm to open ${action.site_name}`);
+        setLogLine(`Popup blocked — click OPEN banner below`);
       } else {
         setLogLine(`Opening ${action.site_name}`);
       }
@@ -277,6 +290,27 @@ export default function JarvisPage() {
         body: JSON.stringify({ action: action.action }),
       });
       setLogLine(`Volume ${action.action}`);
+      return;
+    }
+
+    if (action.type === 'media' && agentConnected) {
+      await fetch(`${AGENT}/media`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: action.action }),
+      });
+      setLogLine(`Media ${action.action}`);
+      return;
+    }
+
+    if (action.type === 'remember') {
+      saveFact(action.fact);
+      setLogLine(`Fact stored in memory: "${action.fact.slice(0, 25)}..."`);
+      return;
+    }
+
+    if (action.type === 'shell') {
+      setPendingCommand(action.command);
+      setLogLine(`Command authorization requested: ${action.command}`);
       return;
     }
 
@@ -442,12 +476,26 @@ System initialization complete. All core modules are online and operating within
       const cur = e.results[e.results.length - 1];
       const raw = cur[0].transcript;
 
+      // ── BARGE-IN VOICE INTERRUPTION ──
+      // If user speaks while JARVIS is speaking, interrupt TTS immediately
+      if (statusRef.current === 'speaking' && raw.trim().length > 1) {
+        if (audioRef.current) {
+          try { audioRef.current.pause(); audioRef.current.currentTime = 0; } catch {}
+        }
+        if (typeof window !== 'undefined' && window.speechSynthesis) {
+          window.speechSynthesis.cancel();
+        }
+        playGlitch();
+        setStatus('listening');
+        setLogLine('Audio playback interrupted by user speech');
+      }
+
       if (!cur.isFinal) { setTranscript(raw); return; }
 
       setTranscript('');
       const text = raw.toLowerCase().trim();
 
-      if (statusRef.current === 'thinking' || statusRef.current === 'speaking') return;
+      if (statusRef.current === 'thinking') return;
 
       if (alwaysOnRef.current) {
 
@@ -459,6 +507,7 @@ System initialization complete. All core modules are online and operating within
           listeningRef.current = false;
           alwaysOnRef.current = false;
           setAlwaysOn(false);
+          startAmbientHum(false);
           setLogLine('Going to sleep...');
           recognitionRef.current?.stop();
           speak("Going to sleep, sir. Call me when you need me.");
@@ -466,6 +515,7 @@ System initialization complete. All core modules are online and operating within
         }
 
         if (text.includes('wake up') && text.includes('jarvis')) {
+          startAmbientHum(true);
           wakeUpRef.current?.();
           return;
         }
@@ -671,7 +721,7 @@ System initialization complete. All core modules are online and operating within
               </span>
             </>
           )}
-          {messages.length > 0 && (
+          {mounted && messages.length > 0 && (
             <>
               <span style={{ color: 'rgba(0,212,255,0.2)' }}>|</span>
               <button
@@ -797,7 +847,7 @@ System initialization complete. All core modules are online and operating within
             <Draggable id="satellite-link"><SatelliteLink /></Draggable>
             <Draggable id="atmospheric-data"><AtmosphericData /></Draggable>
             <Draggable id="security-status"><SecurityStatus /></Draggable>
-            <Draggable id="system-terminal"><SystemTerminal /></Draggable>
+            <Draggable id="system-terminal"><SystemTerminal pendingCommand={pendingCommand} onClearCommand={() => setPendingCommand(null)} /></Draggable>
           </div>
         </div>
       </div>

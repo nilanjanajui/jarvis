@@ -2,15 +2,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 
 export default function Draggable({ id, children, disabled, style }) {
-    const [pos, setPos] = useState(() => {
-        if (typeof window === 'undefined') return { x: 0, y: 0 };
-        try {
-            const saved = localStorage.getItem(`jarvis-pos-${id}`);
-            return saved ? JSON.parse(saved) : { x: 0, y: 0 };
-        } catch {
-            return { x: 0, y: 0 };
-        }
-    });
+    const [pos, setPos] = useState({ x: 0, y: 0 });
 
     const [dragging, setDragging] = useState(false);
     const offsetRef = useRef({ x: 0, y: 0 });
@@ -28,10 +20,7 @@ export default function Draggable({ id, children, disabled, style }) {
         };
     };
 
-    // Compute how far this panel is allowed to move in each direction,
-    // based on its CURRENT on-screen rect (which already includes any
-    // existing translate offset) minus the current pos, giving us the
-    // panel's untranslated "home" rect.
+    // Compute how far this panel is allowed to move in each direction
     const computeBounds = useCallback(() => {
         if (!elRef.current) return null;
         const rect = elRef.current.getBoundingClientRect();
@@ -48,19 +37,24 @@ export default function Draggable({ id, children, disabled, style }) {
         };
     }, []);
 
-    // Re-clamp on mount (fixes positions saved to localStorage from before
-    // clamping existed, or saved on a wider screen) and whenever the window
-    // is resized (fixes panels stranded off-screen after a resize).
+    // Load saved pos post-mount & re-clamp on resize
     useEffect(() => {
         const reclamp = () => {
+            let targetPos = posRef.current;
+            try {
+                const saved = localStorage.getItem(`jarvis-pos-${id}`);
+                if (saved) targetPos = JSON.parse(saved);
+            } catch {}
             const bounds = computeBounds();
-            if (!bounds) return;
-            setPos((p) => clamp(p, bounds));
+            setPos(bounds ? clamp(targetPos, bounds) : targetPos);
         };
-        reclamp();
+        const t = setTimeout(reclamp, 0);
         window.addEventListener('resize', reclamp);
-        return () => window.removeEventListener('resize', reclamp);
-    }, [computeBounds]);
+        return () => {
+            clearTimeout(t);
+            window.removeEventListener('resize', reclamp);
+        };
+    }, [id, computeBounds]);
 
     const handlePointerDown = useCallback((e) => {
         if (disabled) return;

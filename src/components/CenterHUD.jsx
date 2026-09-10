@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import ArcReactor3D from '@/components/ArcReactor3D';
 
 function getGreeting() {
     const h = new Date().getHours();
@@ -59,6 +60,11 @@ export default function CenterHUD({ status, transcript, streamingText, bootProgr
 
     return (
         <div style={{ position: 'relative', width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+
+            {/* 3D WebGL Arc Reactor Holographic Sphere */}
+            <div style={{ position: 'absolute', width: '220px', height: '220px', pointerEvents: 'none', zIndex: 5 }}>
+                <ArcReactor3D status={status} />
+            </div>
 
             {/* Background radial glow */}
             <div style={{

@@ -5,6 +5,7 @@ const AGENT = 'http://localhost:5001';
 
 export default function BioMetrics() {
     const [stats, setStats] = useState(null);
+    const [activeWindow, setActiveWindow] = useState('');
     const [connected, setConnected] = useState(false);
 
     useEffect(() => {
@@ -21,6 +22,13 @@ export default function BioMetrics() {
                     }
                 })
                 .catch(() => setConnected(false));
+
+            fetch(`${AGENT}/active-window`)
+                .then((res) => res.json())
+                .then((data) => {
+                    if (data.title) setActiveWindow(data.title);
+                })
+                .catch(() => {});
         };
 
         fetchStats();
@@ -80,8 +88,14 @@ export default function BioMetrics() {
                 ))}
             </div>
 
+            {connected && activeWindow && (
+                <div style={{ marginTop: '8px', fontFamily: 'Share Tech Mono', fontSize: '10px', color: '#5ee8ff', borderTop: '1px solid rgba(0,212,255,0.1)', paddingTop: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <span style={{ color: 'rgba(0,212,255,0.5)' }}>FOCUS: </span>{activeWindow}
+                </div>
+            )}
+
             {stats?.temp_c && (
-                <div style={{ marginTop: '8px', fontFamily: 'Share Tech Mono', fontSize: '10px', color: 'rgba(0,212,255,0.7)' }}>
+                <div style={{ marginTop: '4px', fontFamily: 'Share Tech Mono', fontSize: '10px', color: 'rgba(0,212,255,0.7)' }}>
                     CPU Temp: {stats.temp_c}°C
                 </div>
             )}

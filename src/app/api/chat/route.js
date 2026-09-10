@@ -176,6 +176,42 @@ const tools = [
             },
         },
     },
+    {
+        type: 'function',
+        function: {
+            name: 'media_control',
+            description: 'Control media playback on system (play_pause, next, previous, stop).',
+            parameters: {
+                type: 'object',
+                properties: { action: { type: 'string', enum: ['play_pause', 'next', 'previous', 'stop'] } },
+                required: ['action'],
+            },
+        },
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'execute_system_command',
+            description: 'Execute a bash shell command on the local machine. Use when user asks to run CLI commands like "git status", "ls", "uptime", "df -h", "check disk space".',
+            parameters: {
+                type: 'object',
+                properties: { command: { type: 'string', description: 'Terminal command to execute' } },
+                required: ['command'],
+            },
+        },
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'remember_fact',
+            description: 'Save a key user fact or preference to memory when user says "remember that..." or states a preference.',
+            parameters: {
+                type: 'object',
+                properties: { fact: { type: 'string', description: 'The exact fact or preference' } },
+                required: ['fact'],
+            },
+        },
+    },
 ];
 
 async function handleToolCall(toolCall, userCoords) {
@@ -194,6 +230,9 @@ async function handleToolCall(toolCall, userCoords) {
         if (name === 'open_url') return `Opening ${args.site_name} in browser`;
         if (name === 'open_app') return `Opening ${args.app_name}`;
         if (name === 'control_volume') return `Volume ${args.action}`;
+        if (name === 'media_control') return `Media action executed: ${args.action}`;
+        if (name === 'execute_system_command') return `Command prepared for approval: ${args.command}`;
+        if (name === 'remember_fact') return `Fact retained in memory: ${args.fact}`;
         return 'Unknown tool.';
     };
 
@@ -203,6 +242,9 @@ async function handleToolCall(toolCall, userCoords) {
         if (name === 'control_volume') return { type: 'volume', action: args.action };
         if (name === 'set_timer') return { type: 'timer', seconds: args.seconds, label: args.label || 'Timer' };
         if (name === 'set_reminder') return { type: 'reminder', seconds: args.seconds, message: args.message };
+        if (name === 'media_control') return { type: 'media', action: args.action };
+        if (name === 'execute_system_command') return { type: 'shell', command: args.command };
+        if (name === 'remember_fact') return { type: 'remember', fact: args.fact };
         return null;
     };
 
@@ -281,6 +323,45 @@ TOOL NARRATION STYLE:
 - Timers/reminders: Confirm naturally. "Timer's set, sir - I'll let you know in ten minutes." Convert spoken durations like "10 minutes" to seconds yourself before calling the tool.`;
 }
 
+// Fallback model list for resilient Groq API calls
+const MODELS = [
+    'openai/gpt-oss-120b',
+    'openai/gpt-oss-20b',
+    'qwen/qwen3.8-27b',
+    'qwen/qwen3.6-27b',
+    'groq/compound',
+    'groq/compound-mini',
+    'llama-3.3-70b-versatile',
+    'llama-3.1-8b-instant',
+];
+
+async function createCompletionWithFallback(params) {
+    let lastErr = null;
+    for (const model of MODELS) {
+        try {
+            return await groq.chat.completions.create({ ...params, model });
+        } catch (err) {
+            lastErr = err;
+            const isModelError =
+                err?.status === 404 ||
+                err?.status === 400 ||
+                err?.code === 'model_not_found' ||
+                err?.code === 'model_decommissioned' ||
+                err?.error?.code === 'model_not_found' ||
+                err?.error?.code === 'model_decommissioned' ||
+                err?.message?.includes('decommissioned') ||
+                err?.message?.includes('not exist');
+
+            if (isModelError) {
+                console.warn(`[Groq] Model "${model}" unavailable (${err.message}), trying next fallback...`);
+                continue;
+            }
+            throw err;
+        }
+    }
+    throw lastErr;
+}
+
 export async function POST(req) {
     const { messages, userLocation, localTime, timezone } = await req.json();
     const userCoords = userLocation ? `${userLocation.lat},${userLocation.lon}` : null;
@@ -294,8 +375,7 @@ export async function POST(req) {
 
             try {
                 // ── First streamed call — decides on tools while streaming any direct text ──
-                const first = await groq.chat.completions.create({
-                    model: 'llama-3.3-70b-versatile',
+                const first = await createCompletionWithFallback({
                     messages: [{ role: 'system', content: SYSTEM }, ...messages],
                     tools,
                     tool_choice: 'auto',
@@ -352,8 +432,7 @@ export async function POST(req) {
                 send({ type: 'action', action });
 
                 // ── Second streamed call — final narrated reply using tool results ──
-                const final = await groq.chat.completions.create({
-                    model: 'llama-3.3-70b-versatile',
+                const final = await createCompletionWithFallback({
                     messages: [{ role: 'system', content: SYSTEM }, ...messages, assistantMsg, ...toolResults],
                     stream: true,
                     max_tokens: 700,

@@ -204,3 +204,39 @@ export function playBootSound() {
 
     return 2000; // total duration in ms
 }
+
+// ── Continuous Sci-Fi Ambient Hum (Reactor Background Drone) ──
+let ambientHumGain = null;
+let ambientHumOsc = null;
+
+export function startAmbientHum(enable = true) {
+    const ctx = getCtx();
+    if (!ctx) return;
+    
+    if (!enable) {
+        if (ambientHumGain) {
+            ambientHumGain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.5);
+            setTimeout(() => {
+                try { ambientHumOsc?.stop(); } catch {}
+                ambientHumOsc = null;
+                ambientHumGain = null;
+            }, 600);
+        }
+        return;
+    }
+
+    if (ambientHumOsc) return; // Already running
+
+    const now = ctx.currentTime;
+    ambientHumOsc = ctx.createOscillator();
+    ambientHumGain = ctx.createGain();
+
+    ambientHumOsc.type = 'sine';
+    ambientHumOsc.frequency.setValueAtTime(55, now); // Low sub-bass 55Hz (A1 tone)
+
+    ambientHumGain.gain.setValueAtTime(0.0001, now);
+    ambientHumGain.gain.exponentialRampToValueAtTime(0.02, now + 1.5); // Subtle room hum
+
+    ambientHumOsc.connect(ambientHumGain).connect(ctx.destination);
+    ambientHumOsc.start(now);
+}

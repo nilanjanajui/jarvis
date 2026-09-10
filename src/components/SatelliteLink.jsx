@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import Globe3D from '@/components/Globe3D';
 
 export default function SatelliteLink() {
     const [latency, setLatency] = useState(14);
@@ -80,6 +81,8 @@ export default function SatelliteLink() {
                     animation: status === 'loading' ? 'pulse-glow 1.5s ease-in-out infinite' : 'none',
                 }} />
             </div>
+
+            <Globe3D />
 
             {rows.map(([l, v]) => (
                 <div key={l} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>

@@ -6,6 +6,7 @@ import os
 import shutil
 import psutil
 import time
+import webbrowser
 
 app = Flask(__name__)
 
@@ -221,6 +222,23 @@ def execute():
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
+@app.route('/open-url', methods=['POST'])
+def open_url():
+    url = (request.json or {}).get('url', '')
+    if not url:
+        return jsonify({'success': False, 'message': 'No URL provided'}), 400
+    try:
+        if OS == 'Linux':
+            subprocess.Popen(['xdg-open', url], env=ENV, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        else:
+            webbrowser.open(url)
+        print(f'[open-url] Opened: {url}')
+        return jsonify({'success': True, 'url': url})
+    except Exception as e:
+        print(f'[open-url] Error: {e}')
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
 @app.route('/volume', methods=['POST'])
 def volume():
     action = (request.json or {}).get('action', '').lower()
@@ -290,6 +308,88 @@ def system_stats():
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+@app.route('/active-window', methods=['GET'])
+def active_window():
+    title = "Desktop / Environment"
+    try:
+        if OS == 'Linux':
+            res = subprocess.run(['xdotool', 'getactivewindow', 'getwindowname'], capture_output=True, text=True, env=ENV, timeout=1)
+            if res.returncode == 0 and res.stdout.strip():
+                title = res.stdout.strip()
+            else:
+                res2 = subprocess.run('xprop -id $(xprop -root _NET_ACTIVE_WINDOW | cut -d " " -f 5) WM_NAME', shell=True, capture_output=True, text=True, env=ENV, timeout=1)
+                if res2.returncode == 0 and '"' in res2.stdout:
+                    title = res2.stdout.split('"')[1]
+        elif OS == 'Darwin':
+            cmd = 'osascript -e "tell application \\"System Events\\" to get name of first process whose frontmost is true"'
+            res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=1)
+            if res.returncode == 0 and res.stdout.strip():
+                title = res.stdout.strip()
+        elif OS == 'Windows':
+            cmd = 'powershell -c "(Get-Process | Where-Object {$_.MainWindowHandle -ne 0} | Sort-Object LastWorkingSet -Descending | Select-Object -First 1).MainWindowTitle"'
+            res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=1)
+            if res.returncode == 0 and res.stdout.strip():
+                title = res.stdout.strip()
+    except Exception:
+        pass
+    return jsonify({'title': title})
+
+
+@app.route('/media', methods=['POST'])
+def media_control():
+    action = (request.json or {}).get('action', '').lower()
+    cmds = {
+        'Linux': {
+            'play_pause': 'playerctl play-pause || xdotool key XF86AudioPlay',
+            'next': 'playerctl next || xdotool key XF86AudioNext',
+            'previous': 'playerctl previous || xdotool key XF86AudioPrev',
+            'stop': 'playerctl stop || xdotool key XF86AudioStop',
+        },
+        'Darwin': {
+            'play_pause': 'osascript -e "tell application \\"Spotify\\" to playpause"',
+            'next': 'osascript -e "tell application \\"Spotify\\" to next track"',
+            'previous': 'osascript -e "tell application \\"Spotify\\" to previous track"',
+        },
+        'Windows': {
+            'play_pause': 'powershell -c "(New-Object -comObject WScript.Shell).SendKeys([char]179)"',
+            'next': 'powershell -c "(New-Object -comObject WScript.Shell).SendKeys([char]176)"',
+            'previous': 'powershell -c "(New-Object -comObject WScript.Shell).SendKeys([char]177)"',
+        }
+    }
+    cmd = cmds.get(OS, {}).get(action)
+    if not cmd:
+        return jsonify({'success': False, 'message': f'Unsupported action: {action}'}), 400
+    try:
+        subprocess.Popen(cmd, shell=True, env=ENV, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return jsonify({'success': True, 'action': action})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/shell', methods=['POST'])
+def run_shell():
+    command = (request.json or {}).get('command', '')
+    if not command:
+        return jsonify({'success': False, 'message': 'No command provided'}), 400
+
+    forbidden = ['rm -rf /', 'mkfs', 'dd if=', ':(){ :|:& };:']
+    if any(f in command for f in forbidden):
+        return jsonify({'success': False, 'message': 'Command blocked by security policy'}), 403
+
+    try:
+        res = subprocess.run(command, shell=True, capture_output=True, text=True, env=ENV, timeout=10)
+        output = res.stdout if res.returncode == 0 else res.stderr
+        return jsonify({
+            'success': res.returncode == 0,
+            'exit_code': res.returncode,
+            'output': output.strip() or '(no output)'
+        })
+    except subprocess.TimeoutExpired:
+        return jsonify({'success': False, 'message': 'Command timed out after 10 seconds'}), 500
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 
 if __name__ == '__main__':
