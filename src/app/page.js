@@ -14,7 +14,8 @@ import SatelliteLink from '@/components/SatelliteLink';
 import AtmosphericData from '@/components/AtmosphericData';
 import SecurityStatus from '@/components/SecurityStatus';
 import SystemTerminal from '@/components/SystemTerminal';
-import { CalculatorPanel, TimerPanel, NotebookPanel } from '@/components/HudTools';
+import { CalculatorPanel, TimerPanel, NotebookPanel, ProcessMonitorPanel } from '@/components/HudTools';
+import { useLocalAgentWs } from '@/lib/useLocalAgentWs';
 import { DEFAULT_VOICE_ID } from '@/lib/voices';
 import {
   playClick,
@@ -46,7 +47,14 @@ export default function JarvisPage() {
   const [mounted, setMounted] = useState(false);
   const [logLine, setLogLine] = useState('');
   const [elevenLabsOk, setElevenLabsOk] = useState(true);
-  const [agentConnected, setAgentConnected] = useState(false);
+  const {
+    isConnected: agentConnected,
+    isWsConnected,
+    metrics: agentMetrics,
+    pingMs: agentPingMs,
+    killProcess,
+  } = useLocalAgentWs();
+
   const [alwaysOn, setAlwaysOn] = useState(false);
   const [userLocation, setUserLocation] = useState(null);
   const [pendingUrl, setPendingUrl] = useState(null);
@@ -54,6 +62,7 @@ export default function JarvisPage() {
   const [settingsOpenSeq, setSettingsOpenSeq] = useState(0);
   const [alwaysOnDefault, setAlwaysOnDefault] = useState(false);
   const [voiceId, setVoiceId] = useState(DEFAULT_VOICE_ID);
+  const [showProcessMonitor, setShowProcessMonitor] = useState(false);
 
   // Layout version — bump this string whenever the Draggable system changes
   // to auto-clear any stale off-screen saved positions.
@@ -161,17 +170,6 @@ export default function JarvisPage() {
     );
   }, []);
 
-  // ── Agent connection check (local only — agent.py runs on your PC, not Vercel) ─
-  useEffect(() => {
-    const isLocal = typeof window !== 'undefined' && window.location.hostname === 'localhost';
-    if (!isLocal) return;
-
-    const check = () =>
-      fetch(`${AGENT}/health`).then(() => setAgentConnected(true)).catch(() => setAgentConnected(false));
-    check();
-    const t = setInterval(check, 10000);
-    return () => clearInterval(t);
-  }, []);
 
   // ── Safe recognition helpers ────────────────────────────────────────────────
   const safeStart = useCallback(() => {
@@ -715,6 +713,10 @@ System initialization complete. All core modules are online and operating within
               setActiveNav(nav);
               if (nav === 'SETTINGS') setShowSettings(true);
             }}
+            onToggleProcesses={() => {
+              playClick();
+              setShowProcessMonitor((prev) => !prev);
+            }}
             onSettingsClick={() => {
               playClick();
               setSettingsOpenSeq((n) => n + 1);
@@ -727,8 +729,8 @@ System initialization complete. All core modules are online and operating within
 
         {/* Status bar */}
         <div className="jarvis-status-bar" style={{ flexShrink: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '14px', padding: '6px 16px', borderBottom: '1px solid rgba(0,212,255,0.12)', background: 'rgba(0,5,12,0.92)', flexWrap: 'wrap' }}>
-          <span style={{ fontFamily: 'Share Tech Mono', fontSize: '11px', color: agentConnected ? '#22c55e' : 'rgba(0,212,255,0.3)', letterSpacing: '0.1em' }}>
-            {agentConnected ? '● AGENT ONLINE' : '○ AGENT OFFLINE'}
+          <span style={{ fontFamily: 'Share Tech Mono', fontSize: '11px', color: isWsConnected ? '#00ff88' : agentConnected ? '#22c55e' : 'rgba(0,212,255,0.3)', letterSpacing: '0.1em' }}>
+            {isWsConnected ? `● WS IPC STREAM (${agentPingMs}ms)` : agentConnected ? '● AGENT HTTP ONLINE' : '○ AGENT OFFLINE'}
           </span>
           <span style={{ color: 'rgba(0,212,255,0.2)' }}>|</span>
           <span style={{ fontFamily: 'Share Tech Mono', fontSize: '11px', color: userLocation ? '#22c55e' : 'rgba(0,212,255,0.3)', letterSpacing: '0.1em' }}>
@@ -781,7 +783,7 @@ System initialization complete. All core modules are online and operating within
             RESET LAYOUT
           </button>
           <span style={{ color: 'rgba(0,212,255,0.2)' }}>|</span>
-          {/* Tool panel toggles — CALC / TIMER / NOTES */}
+          {/* Tool panel toggles — CALC / TIMER / NOTES / PROCESSES */}
           <button
             onClick={() => { playClick(); setShowCalculator((v) => !v); }}
             style={{
@@ -820,6 +822,19 @@ System initialization complete. All core modules are online and operating within
             }}
           >
             NOTES
+          </button>
+          <button
+            onClick={() => { playClick(); setShowProcessMonitor((v) => !v); }}
+            style={{
+              fontFamily: 'Orbitron', fontSize: '10px', letterSpacing: '0.15em',
+              background: showProcessMonitor ? 'rgba(0,212,255,0.2)' : 'none',
+              border: `1px solid ${showProcessMonitor ? '#00d4ff' : 'rgba(0,212,255,0.3)'}`,
+              color: showProcessMonitor ? '#00d4ff' : 'rgba(0,212,255,0.7)',
+              padding: '2px 10px', cursor: 'pointer', borderRadius: '2px', transition: 'all 0.2s',
+              boxShadow: showProcessMonitor ? '0 0 10px rgba(0,212,255,0.3)' : 'none',
+            }}
+          >
+            PROCESSES
           </button>
         </div>
 
@@ -862,6 +877,15 @@ System initialization complete. All core modules are online and operating within
               )}
               {showNotebook && (
                 <NotebookPanel onClose={() => { playClick(); setShowNotebook(false); }} />
+              )}
+              {showProcessMonitor && (
+                <ProcessMonitorPanel
+                  onClose={() => { playClick(); setShowProcessMonitor(false); }}
+                  processes={agentMetrics.top_processes || []}
+                  onKillProcess={killProcess}
+                  pingMs={agentPingMs}
+                  isWsConnected={isWsConnected}
+                />
               )}
             </div>
           </div>

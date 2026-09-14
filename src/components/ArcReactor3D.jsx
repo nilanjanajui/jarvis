@@ -13,8 +13,56 @@ const STATUS_COLORS = {
     booting: 0x00d4ff,
 };
 
-export default function ArcReactor3D({ status = 'idle' }) {
+export default function ArcReactor3D({ status = 'idle', audioLevel = null }) {
     const mountRef = useRef(null);
+    const analyserRef = useRef(null);
+    const audioCtxRef = useRef(null);
+
+    // Initialize mic audio analyser when listening/speaking if available
+    useEffect(() => {
+        let streamTrack = null;
+        let isCancelled = false;
+
+        const initAudio = async () => {
+            try {
+                if (typeof window === 'undefined' || !navigator.mediaDevices?.getUserMedia) return;
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                if (isCancelled) {
+                    stream.getTracks().forEach(t => t.stop());
+                    return;
+                }
+                streamTrack = stream.getTracks()[0];
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (!AudioCtx) return;
+                const ac = new AudioCtx();
+                audioCtxRef.current = ac;
+                const src = ac.createMediaStreamSource(stream);
+                const an = ac.createAnalyser();
+                an.fftSize = 64;
+                an.smoothingTimeConstant = 0.8;
+                src.connect(an);
+                analyserRef.current = an;
+            } catch {
+                // Audio capture optional fallback
+            }
+        };
+
+        if (status === 'listening' || status === 'speaking') {
+            initAudio();
+        }
+
+        return () => {
+            isCancelled = true;
+            if (audioCtxRef.current && audioCtxRef.current.state !== 'closed') {
+                audioCtxRef.current.close().catch(() => {});
+            }
+            if (streamTrack) {
+                streamTrack.stop();
+            }
+            analyserRef.current = null;
+            audioCtxRef.current = null;
+        };
+    }, [status]);
 
     useEffect(() => {
         const mount = mountRef.current;
@@ -34,10 +82,11 @@ export default function ArcReactor3D({ status = 'idle' }) {
         mount.appendChild(renderer.domElement);
 
         // Core 3D Particle Cloud
-        const particleCount = 1200;
+        const particleCount = 1400;
         const geometry = new THREE.BufferGeometry();
         const positions = new Float32Array(particleCount * 3);
         const originalRadius = 55;
+        const baseDirections = new Float32Array(particleCount * 3);
 
         for (let i = 0; i < particleCount; i++) {
             const u = Math.random();
@@ -45,10 +94,18 @@ export default function ArcReactor3D({ status = 'idle' }) {
             const theta = u * 2.0 * Math.PI;
             const phi = Math.acos(2.0 * v - 1.0);
 
-            const r = originalRadius + (Math.random() - 0.5) * 8;
-            positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
-            positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
-            positions[i * 3 + 2] = r * Math.cos(phi);
+            const r = originalRadius + (Math.random() - 0.5) * 10;
+            const dirX = Math.sin(phi) * Math.cos(theta);
+            const dirY = Math.sin(phi) * Math.sin(theta);
+            const dirZ = Math.cos(phi);
+
+            baseDirections[i * 3] = dirX;
+            baseDirections[i * 3 + 1] = dirY;
+            baseDirections[i * 3 + 2] = dirZ;
+
+            positions[i * 3] = dirX * r;
+            positions[i * 3 + 1] = dirY * r;
+            positions[i * 3 + 2] = dirZ * r;
         }
 
         geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
@@ -56,65 +113,80 @@ export default function ArcReactor3D({ status = 'idle' }) {
         const targetColor = new THREE.Color(STATUS_COLORS[status] || 0x00d4ff);
         const material = new THREE.PointsMaterial({
             color: targetColor,
-            size: 1.8,
+            size: 2.0,
             transparent: true,
-            opacity: 0.85,
+            opacity: 0.88,
             blending: THREE.AdditiveBlending,
         });
 
         const particleSystem = new THREE.Points(geometry, material);
         scene.add(particleSystem);
 
-        // Concentric Orbital Rings
+        // Concentric Orbital Rings with Energy Accents
         const ringGroup = new THREE.Group();
         const createRing = (radius, color, speedX, speedY) => {
-            const ringGeo = new THREE.RingGeometry(radius, radius + 0.6, 64);
+            const ringGeo = new THREE.RingGeometry(radius, radius + 0.8, 64);
             const ringMat = new THREE.MeshBasicMaterial({
                 color: color,
                 side: THREE.DoubleSide,
                 transparent: true,
-                opacity: 0.5,
+                opacity: 0.55,
                 blending: THREE.AdditiveBlending,
             });
             const ringMesh = new THREE.Mesh(ringGeo, ringMat);
-            ringMesh.userData = { speedX, speedY };
+            ringMesh.userData = { speedX, speedY, baseSpeedX: speedX, baseSpeedY: speedY };
             ringGroup.add(ringMesh);
         };
 
         createRing(48, targetColor, 0.008, 0.005);
-        createRing(62, targetColor, -0.005, 0.01);
-        createRing(75, targetColor, 0.003, -0.008);
+        createRing(62, targetColor, -0.006, 0.012);
+        createRing(76, targetColor, 0.004, -0.009);
         scene.add(ringGroup);
 
         // Animation Loop
         let reqId;
         const startTime = performance.now();
+        const freqData = new Uint8Array(32);
 
         const animate = () => {
             reqId = requestAnimationFrame(animate);
             const elapsedTime = (performance.now() - startTime) * 0.001;
 
-            // Rotate particle cloud
-            particleSystem.rotation.y = elapsedTime * 0.2;
+            // Calculate real audio energy (0 to 1) from Web Audio API analyser
+            let audioEnergy = 0;
+            if (analyserRef.current) {
+                analyserRef.current.getByteFrequencyData(freqData);
+                let sum = 0;
+                for (let k = 0; k < freqData.length; k++) {
+                    sum += freqData[k];
+                }
+                audioEnergy = Math.min(1.0, (sum / freqData.length) / 128.0);
+            } else if (typeof audioLevel === 'number') {
+                audioEnergy = Math.min(1.0, Math.max(0, audioLevel));
+            }
+
+            // Rotate particle cloud based on audio energy
+            const rotSpeedMult = 1.0 + audioEnergy * 3.0;
+            particleSystem.rotation.y = elapsedTime * 0.2 * rotSpeedMult;
             particleSystem.rotation.x = Math.sin(elapsedTime * 0.1) * 0.15;
 
-            // Pulse particles based on status
+            // Pulse particles based on status + real-time FFT audio energy
             const positionsArr = geometry.attributes.position.array;
-            const pulseAmp = status === 'speaking' ? 3.5 : status === 'listening' ? 2.0 : status === 'thinking' ? 4.0 : 0.8;
-            const pulseSpeed = status === 'thinking' ? 8.0 : status === 'speaking' ? 5.0 : 2.0;
+            const statusAmp = status === 'speaking' ? 4.5 : status === 'listening' ? 3.0 : status === 'thinking' ? 5.0 : 1.0;
+            const pulseSpeed = status === 'thinking' ? 9.0 : status === 'speaking' ? 6.0 : 2.5;
 
             for (let i = 0; i < particleCount; i++) {
                 const idx = i * 3;
-                const x = positionsArr[idx];
-                const y = positionsArr[idx + 1];
-                const z = positionsArr[idx + 2];
-                const len = Math.sqrt(x * x + y * y + z * z);
-                const dirX = x / len;
-                const dirY = y / len;
-                const dirZ = z / len;
+                const dirX = baseDirections[idx];
+                const dirY = baseDirections[idx + 1];
+                const dirZ = baseDirections[idx + 2];
 
-                const offset = Math.sin(elapsedTime * pulseSpeed + i * 0.1) * pulseAmp;
-                const newR = originalRadius + offset;
+                // Frequency band index modulation
+                const freqVal = freqData[i % 32] / 255.0 || 0;
+                const audioDisplacement = (audioEnergy * 15.0) + (freqVal * 12.0);
+
+                const baseOffset = Math.sin(elapsedTime * pulseSpeed + i * 0.08) * statusAmp;
+                const newR = originalRadius + baseOffset + audioDisplacement;
 
                 positionsArr[idx] = dirX * newR;
                 positionsArr[idx + 1] = dirY * newR;
@@ -122,10 +194,11 @@ export default function ArcReactor3D({ status = 'idle' }) {
             }
             geometry.attributes.position.needsUpdate = true;
 
-            // Rotate orbital rings
+            // Accelerate orbital rings proportional to audio energy & status
+            const ringSpeedBoost = 1.0 + audioEnergy * 4.0 + (status === 'thinking' ? 2.5 : 0);
             ringGroup.children.forEach((ring) => {
-                ring.rotation.x += ring.userData.speedX;
-                ring.rotation.y += ring.userData.speedY;
+                ring.rotation.x += ring.userData.baseSpeedX * ringSpeedBoost;
+                ring.rotation.y += ring.userData.baseSpeedY * ringSpeedBoost;
             });
 
             renderer.render(scene, camera);
@@ -155,7 +228,7 @@ export default function ArcReactor3D({ status = 'idle' }) {
             material.dispose();
             renderer.dispose();
         };
-    }, [status]);
+    }, [status, audioLevel]);
 
     return (
         <div
@@ -170,3 +243,4 @@ export default function ArcReactor3D({ status = 'idle' }) {
         />
     );
 }
+

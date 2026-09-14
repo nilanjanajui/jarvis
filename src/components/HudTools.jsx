@@ -396,3 +396,81 @@ export function NotebookPanel({ onClose }) {
         </Panel>
     );
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Process Monitor — live process inspection & termination
+// ─────────────────────────────────────────────────────────────────────────────
+export function ProcessMonitorPanel({ onClose, processes = [], onKillProcess, pingMs = 0, isWsConnected = false }) {
+    const [killingPid, setKillingPid] = useState(null);
+
+    const handleKill = async (pid) => {
+        if (!onKillProcess) return;
+        setKillingPid(pid);
+        await onKillProcess(pid);
+        setKillingPid(null);
+    };
+
+    return (
+        <Panel corner="bottom-right" width="260px" title="PROCESS MONITOR" onClose={onClose} dragId="process-panel">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', borderBottom: '1px solid rgba(0,212,255,0.15)', paddingBottom: '4px' }}>
+                <span style={{ fontFamily: 'Share Tech Mono', fontSize: '9px', color: isWsConnected ? '#00ff88' : 'rgba(0,212,255,0.5)' }}>
+                    {isWsConnected ? `● WS IPC STREAM (${pingMs}ms)` : '○ HTTP POLL'}
+                </span>
+                <span style={{ fontFamily: 'Share Tech Mono', fontSize: '9px', color: 'rgba(0,212,255,0.4)' }}>
+                    TOP {processes.length} TASKS
+                </span>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '160px', overflowY: 'auto' }}>
+                {processes.length === 0 ? (
+                    <div style={{ fontFamily: 'Share Tech Mono', fontSize: '10px', color: 'rgba(0,212,255,0.4)', textAlign: 'center', padding: '12px 0' }}>
+                        Waiting for agent processes telemetry...
+                    </div>
+                ) : (
+                    processes.slice(0, 6).map((proc) => (
+                        <div
+                            key={proc.pid}
+                            style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                background: 'rgba(0,10,20,0.5)',
+                                border: '1px solid rgba(0,212,255,0.15)',
+                                padding: '4px 6px',
+                                fontFamily: 'Share Tech Mono',
+                                fontSize: '10px',
+                            }}
+                        >
+                            <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '110px' }}>
+                                <span style={{ color: '#00d4ff' }}>{proc.name}</span>
+                                <span style={{ color: 'rgba(0,212,255,0.4)', fontSize: '8px', marginLeft: '4px' }}>#{proc.pid}</span>
+                            </div>
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ color: proc.cpu > 15 ? '#ffaa00' : 'rgba(0,212,255,0.7)' }}>
+                                    {proc.cpu}% CPU
+                                </span>
+                                <button
+                                    onClick={() => handleKill(proc.pid)}
+                                    disabled={killingPid === proc.pid}
+                                    data-no-drag
+                                    style={{
+                                        background: 'rgba(239,68,68,0.15)',
+                                        border: '1px solid rgba(239,68,68,0.4)',
+                                        color: '#ef4444',
+                                        fontSize: '8px',
+                                        padding: '1px 4px',
+                                        cursor: 'pointer',
+                                        borderRadius: '2px',
+                                    }}
+                                >
+                                    {killingPid === proc.pid ? '...' : 'KILL'}
+                                </button>
+                            </div>
+                        </div>
+                    ))
+                )}
+            </div>
+        </Panel>
+    );
+}

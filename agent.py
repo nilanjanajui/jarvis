@@ -368,6 +368,48 @@ def media_control():
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
+@app.route('/processes', methods=['GET'])
+def get_processes():
+    try:
+        limit = int(request.args.get('limit', 10))
+        procs = []
+        for p in psutil.process_iter(['pid', 'name', 'cpu_percent', 'memory_percent']):
+            try:
+                info = p.info
+                if info['name']:
+                    procs.append({
+                        'pid': info['pid'],
+                        'name': info['name'],
+                        'cpu': round(info['cpu_percent'] or 0, 1),
+                        'mem': round(info['memory_percent'] or 0, 1),
+                    })
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                pass
+        procs.sort(key=lambda x: (x['cpu'], x['mem']), reverse=True)
+        return jsonify({'success': True, 'processes': procs[:limit]})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/kill-process', methods=['POST'])
+def kill_process():
+    try:
+        pid = (request.json or {}).get('pid')
+        if not pid:
+            return jsonify({'success': False, 'message': 'No PID provided'}), 400
+        pid = int(pid)
+        if pid in (0, 1) or pid == os.getpid():
+            return jsonify({'success': False, 'message': 'Protected system process'}), 403
+        
+        proc = psutil.Process(pid)
+        proc.terminate()
+        return jsonify({'success': True, 'message': f'Terminated process PID {pid}'})
+    except psutil.NoSuchProcess:
+        return jsonify({'success': False, 'message': 'Process not found'}), 404
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
 @app.route('/shell', methods=['POST'])
 def run_shell():
     command = (request.json or {}).get('command', '')
@@ -392,6 +434,78 @@ def run_shell():
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
+# ── WebSocket Telemetry & IPC Server ─────────────────────────────────────────
+
+import threading
+import asyncio
+import json
+
+def get_top_processes_list(limit=6):
+    procs = []
+    for p in psutil.process_iter(['pid', 'name', 'cpu_percent', 'memory_percent']):
+        try:
+            info = p.info
+            if info['name']:
+                procs.append({
+                    'pid': info['pid'],
+                    'name': info['name'],
+                    'cpu': round(info['cpu_percent'] or 0, 1),
+                    'mem': round(info['memory_percent'] or 0, 1),
+                })
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            pass
+    procs.sort(key=lambda x: (x['cpu'], x['mem']), reverse=True)
+    return procs[:limit]
+
+async def ws_handler(websocket):
+    print("[WebSocket] Client connected")
+    try:
+        while True:
+            # Gather current metrics
+            cpu_percent = psutil.cpu_percent(interval=None)
+            mem = psutil.virtual_memory()
+            disk = psutil.disk_usage('/')
+            uptime_seconds = int(time.time() - START_TIME)
+            hours = uptime_seconds // 3600
+            minutes = (uptime_seconds % 3600) // 60
+
+            payload = {
+                'type': 'telemetry',
+                'timestamp': int(time.time() * 1000),
+                'data': {
+                    'cpu_percent': round(cpu_percent, 1),
+                    'ram_percent': round(mem.percent, 1),
+                    'ram_used_gb': round(mem.used / (1024 ** 3), 1),
+                    'ram_total_gb': round(mem.total / (1024 ** 3), 1),
+                    'disk_percent': round(disk.percent, 1),
+                    'uptime': f'{hours}h {minutes}m',
+                    'top_processes': get_top_processes_list(6),
+                }
+            }
+            await websocket.send(json.dumps(payload))
+            await asyncio.sleep(1.0)
+    except Exception as e:
+        print(f"[WebSocket] Client disconnected: {e}")
+
+def start_websocket_server():
+    try:
+        import websockets
+        async def main():
+            async with websockets.serve(ws_handler, "0.0.0.0", 5002):
+                print("[WebSocket IPC] Server listening on ws://localhost:5002")
+                await asyncio.Future() # run forever
+
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(main())
+    except Exception as e:
+        print(f"[WebSocket IPC] Server warning: {e}")
+
+# Launch WebSocket thread
+ws_thread = threading.Thread(target=start_websocket_server, daemon=True)
+ws_thread.start()
+
+
 if __name__ == '__main__':
     print(f'\nJARVIS Agent')
     print(f'OS       : {OS}')
@@ -399,5 +513,6 @@ if __name__ == '__main__':
     print(f'Apps found on this system:')
     for k, v in APPS.get(OS, {}).items():
         print(f'  {k:<22} → {v}')
-    print(f'\nRunning at http://localhost:5001\n')
+    print(f'\nREST API: http://localhost:5001')
+    print(f'WebSocket: ws://localhost:5002\n')
     app.run(port=5001, debug=False)

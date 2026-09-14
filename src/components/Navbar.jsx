@@ -2,13 +2,14 @@
 
 import { useState } from 'react';
 
-export default function Navbar({ onSettingsClick, settingsOpen, activeItem = 'DASHBOARD', onNavigate }) {
-    const items = ['HOME', 'DASHBOARD', 'SETTINGS', 'ABOUT'];
+export default function Navbar({ onSettingsClick, settingsOpen, activeItem = 'DASHBOARD', onNavigate, onToggleProcesses }) {
+    const items = ['HOME', 'DASHBOARD', 'PROCESSES', 'SETTINGS', 'ABOUT'];
     const [hovered, setHovered] = useState(null);
 
     const handleClick = (item) => {
         if (item === 'SETTINGS') onSettingsClick?.();
-        onNavigate?.(item);
+        else if (item === 'PROCESSES') onToggleProcesses?.();
+        else onNavigate?.(item);
     };
 
     return (
@@ -53,7 +54,7 @@ export default function Navbar({ onSettingsClick, settingsOpen, activeItem = 'DA
                 })}
             </div>
 
-            <div style={{ display: 'flex', gap: '16px' }}>
+            <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
                 {/* Wifi icon */}
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#00d4ff" strokeWidth="1.5" strokeLinecap="round">
                     <path d="M1 6s4-4 11-4 11 4 11 4M5 10s2.5-2.5 7-2.5 7 2.5 7 2.5M9 14s1.5-1.5 3-1.5 3 1.5 3 1.5M12 18v1" />
