@@ -139,6 +139,17 @@ Open `http://localhost:3000` in Google Chrome or Microsoft Edge.
 
 ---
 
+## ⚠️ Troubleshooting: Why Vercel says "Agent Offline"
+
+If you visit the **live Vercel link** (`https://...`), the desktop control features will show as "Agent Offline". This is because of fundamental web security rules, not a bug in the code:
+
+1. **Mixed Content Blocking**: The live site is served securely over **HTTPS**. The local Python agent runs insecurely on plain **HTTP/WS** (`http://localhost:5001`). Modern browsers (Chrome, Safari, Firefox) strictly block secure websites from making unencrypted requests to prevent eavesdropping and data injection.
+2. **Localhost Isolation**: `localhost` refers to the computer of the person *viewing* the website. When a recruiter or friend opens the Vercel link, their browser looks for `agent.py` on *their* laptop or phone, where it isn't running.
+
+**How to test Desktop Control:**
+Always use `http://localhost:3000` (run `npm run dev`) alongside `agent.py`. Since both run over local HTTP, the browser allows the connection perfectly without security warnings!
+
+---
 ## 📜 License
 
 Distributed under the MIT License. See `LICENSE` for more information.
