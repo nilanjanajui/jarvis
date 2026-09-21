@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import SettingsPanel from '@/components/SettingsPanel';
 import AboutModal from '@/components/AboutModal';
@@ -40,6 +41,7 @@ const ids = [
 
 
 export default function JarvisPage() {
+  const router = useRouter();
   const [status, setStatus] = useState('idle');
   const [transcript, setTranscript] = useState('');
   const [streamingText, setStreamingText] = useState('');
@@ -346,8 +348,14 @@ export default function JarvisPage() {
         }
         speak(`Reminder, sir: ${action.message}`);
       }, action.seconds * 1000);
+      return;
     }
-  }, [agentConnected, speak, startTimer]);
+
+    if (action.type === 'swarm') {
+      router.push('/swarm?task=' + encodeURIComponent(action.task));
+      setLogLine(`Deployed Swarm for task: ${action.task}`);
+    }
+  }, [agentConnected, speak, startTimer, router]);
 
   const requestNotificationPermission = useCallback(() => {
     if ('Notification' in window && Notification.permission === 'default') {

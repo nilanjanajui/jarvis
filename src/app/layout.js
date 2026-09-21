@@ -7,7 +7,7 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
       </head>
       <body style={{ height: '100vh', overflow: 'hidden' }}>

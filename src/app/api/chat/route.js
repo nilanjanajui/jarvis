@@ -212,6 +212,18 @@ const tools = [
             },
         },
     },
+    {
+        type: 'function',
+        function: {
+            name: 'start_swarm_task',
+            description: 'Start an autonomous AI agent swarm to build a complex project, like a web app, a game, or a script. Use when user says "build an app", "create a project", or "code a...".',
+            parameters: {
+                type: 'object',
+                properties: { task: { type: 'string', description: 'The overarching task description for the swarm to build.' } },
+                required: ['task'],
+            },
+        },
+    },
 ];
 
 async function handleToolCall(toolCall, userCoords) {
@@ -233,6 +245,7 @@ async function handleToolCall(toolCall, userCoords) {
         if (name === 'media_control') return `Media action executed: ${args.action}`;
         if (name === 'execute_system_command') return `Command prepared for approval: ${args.command}`;
         if (name === 'remember_fact') return `Fact retained in memory: ${args.fact}`;
+        if (name === 'start_swarm_task') return `Swarm deployed for task: ${args.task}. Please open the Swarm Monitoring UI.`;
         return 'Unknown tool.';
     };
 
@@ -245,6 +258,7 @@ async function handleToolCall(toolCall, userCoords) {
         if (name === 'media_control') return { type: 'media', action: args.action };
         if (name === 'execute_system_command') return { type: 'shell', command: args.command };
         if (name === 'remember_fact') return { type: 'remember', fact: args.fact };
+        if (name === 'start_swarm_task') return { type: 'swarm', task: args.task };
         return null;
     };
 
