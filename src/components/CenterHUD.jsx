@@ -9,7 +9,7 @@ function getGreeting() {
     return 'GOOD EVENING';
 }
 
-export default function CenterHUD({ status, transcript, streamingText, bootProgress }) {
+export default function CenterHUD({ status, transcript, streamingText, bootProgress, ttsAudioRef }) {
     const [greeting] = useState(getGreeting);
     const [ticks, setTicks] = useState([]);
     const [scanPath, setScanPath] = useState('');
@@ -62,7 +62,7 @@ export default function CenterHUD({ status, transcript, streamingText, bootProgr
 
             {/* 3D WebGL Arc Reactor Holographic Sphere */}
             <div style={{ position: 'absolute', width: '220px', height: '220px', pointerEvents: 'none', zIndex: 5 }}>
-                <ArcReactor3D status={status} />
+                <ArcReactor3D status={status} ttsAudioRef={ttsAudioRef} />
             </div>
 
             {/* Background radial glow */}

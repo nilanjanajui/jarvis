@@ -26,6 +26,9 @@ import {
   playBootSound as playBootSoundLib,
   startAmbientHum,
 } from '@/lib/hudSounds';
+import { playSpatialClick } from '@/lib/spatialAudio';
+import { useSpatialMouse } from '@/lib/useSpatialMouse';
+import { useWindowPosition } from '@/lib/useWindowPosition';
 import { saveFact } from '@/lib/memory';
 import Draggable from '@/components/Draggable';
 
@@ -40,6 +43,8 @@ const ids = [
 
 
 export default function JarvisPage() {
+  const { nx: mouseNX, ny: mouseNY } = useSpatialMouse();
+  const windowPos = useWindowPosition();
   const [status, setStatus] = useState('idle');
   const [transcript, setTranscript] = useState('');
   const [streamingText, setStreamingText] = useState('');
@@ -675,8 +680,13 @@ System initialization complete. All core modules are online and operating within
   return (
     <div className="jarvis-app-root" style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#060b14', overflow: 'hidden', position: 'relative' }}>
 
-      {/* Animated Background */}
-      <div style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none', overflow: 'hidden' }}>
+      {/* Animated Background — deeper parallax layer (moves more than HUD for depth) */}
+      <div style={{
+        position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none', overflow: 'hidden',
+        transform: `translate(${mouseNX * -20}px, ${mouseNY * -20}px)`,
+        transition: 'transform 0.2s ease-out',
+        willChange: 'transform',
+      }}>
         {/* Hexagonal-ish tri-line grid — soft focus, sits behind everything */}
         <div className="jarvis-depth-blur" style={{
           position: 'absolute', inset: 0,
@@ -709,8 +719,14 @@ System initialization complete. All core modules are online and operating within
       <div className="jarvis-corner-bracket" style={{ bottom: 14, left: 14, borderBottom: '2px solid', borderLeft: '2px solid' }} />
       <div className="jarvis-corner-bracket" style={{ bottom: 14, right: 14, borderBottom: '2px solid', borderRight: '2px solid' }} />
 
-      {/* App layer — flex column pinned to screen, flexShrink: 0 on headers so they never collapse */}
-      <div style={{ position: 'relative', zIndex: 10, display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw', overflow: 'hidden' }}>
+      {/* App layer — flex column with spatial parallax, flexShrink: 0 on headers so they never collapse */}
+      <div style={{
+        position: 'relative', zIndex: 10, display: 'flex', flexDirection: 'column',
+        height: '100vh', width: '100vw', overflow: 'hidden',
+        transform: `perspective(1200px) rotateX(${-mouseNY * 1.5}deg) rotateY(${mouseNX * 1.5}deg)`,
+        transition: 'transform 0.15s ease-out',
+        willChange: 'transform',
+      }}>
         <div style={{ flexShrink: 0 }}>
           <Navbar
             activeItem={activeNav}
@@ -745,6 +761,10 @@ System initialization complete. All core modules are online and operating within
           <span style={{ color: 'rgba(0,212,255,0.2)' }}>|</span>
           <span style={{ fontFamily: 'Share Tech Mono', fontSize: '11px', color: elevenLabsOk ? '#00d4ff' : '#f59e0b', letterSpacing: '0.1em' }}>
             {elevenLabsOk ? '● ELEVENLABS VOICE' : '⚠ BROWSER VOICE'}
+          </span>
+          <span style={{ color: 'rgba(0,212,255,0.2)' }}>|</span>
+          <span style={{ fontFamily: 'Share Tech Mono', fontSize: '11px', color: '#00d4ff', letterSpacing: '0.1em', opacity: 0.6 }}>
+            ◈ SPATIAL 3D · {windowPos.quadrant}{windowPos.isMultiMonitor ? ` · MON${windowPos.monitor}` : ''}
           </span>
           <span style={{ color: 'rgba(0,212,255,0.2)' }}>|</span>
           <button
@@ -868,7 +888,7 @@ System initialization complete. All core modules are online and operating within
               onClick={handleMicClick}
               style={{ flex: 1, cursor: !alwaysOn && status === 'idle' ? 'pointer' : 'default', position: 'relative' }}
             >
-              <CenterHUD status={status} transcript={transcript} streamingText={streamingText} bootProgress={bootProgress} />
+              <CenterHUD status={status} transcript={transcript} streamingText={streamingText} bootProgress={bootProgress} ttsAudioRef={audioRef} />
               {!alwaysOn && status === 'idle' && (
                 <div style={{ position: 'absolute', bottom: '6%', left: '50%', transform: 'translateX(-50%)', fontFamily: 'Orbitron', fontSize: '10px', letterSpacing: '0.2em', color: 'rgba(0,212,255,0.4)' }}>
                   CLICK TO ACTIVATE

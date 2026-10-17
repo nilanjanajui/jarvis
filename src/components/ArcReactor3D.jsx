@@ -13,10 +13,11 @@ const STATUS_COLORS = {
     booting: 0x00d4ff,
 };
 
-export default function ArcReactor3D({ status = 'idle', audioLevel = null }) {
+export default function ArcReactor3D({ status = 'idle', audioLevel = null, ttsAudioRef = null }) {
     const mountRef = useRef(null);
     const analyserRef = useRef(null);
     const audioCtxRef = useRef(null);
+    const ttsAnalyserRef = useRef(null);
 
     // Initialize mic audio analyser when listening/speaking if available
     useEffect(() => {
@@ -47,7 +48,7 @@ export default function ArcReactor3D({ status = 'idle', audioLevel = null }) {
             }
         };
 
-        if (status === 'listening' || status === 'speaking') {
+        if (status === 'listening') {
             initAudio();
         }
 
@@ -63,6 +64,54 @@ export default function ArcReactor3D({ status = 'idle', audioLevel = null }) {
             audioCtxRef.current = null;
         };
     }, [status]);
+
+    // ── TTS Audio Reactive: connect to the <audio> element for voice reactivity ──
+    useEffect(() => {
+        if (status !== 'speaking' || !ttsAudioRef?.current) return;
+
+        let cleanup = null;
+        const audio = ttsAudioRef.current;
+
+        const connectTTS = () => {
+            try {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (!AudioCtx) return;
+
+                // Reuse global audio context to avoid browser limits
+                const ctx = window.__jarvisAudioCtx || new AudioCtx();
+                window.__jarvisAudioCtx = ctx;
+
+                // Only create MediaElementSource once per <audio> element
+                if (!audio.__jarvisSourceNode) {
+                    const source = ctx.createMediaElementSource(audio);
+                    audio.__jarvisSourceNode = source;
+                    // Always keep it connected to destination so audio plays
+                    source.connect(ctx.destination);
+                }
+
+                const an = ctx.createAnalyser();
+                an.fftSize = 128;  // More frequency bins for detailed reactivity
+                an.smoothingTimeConstant = 0.75;
+                audio.__jarvisSourceNode.connect(an);
+                ttsAnalyserRef.current = an;
+
+                cleanup = () => {
+                    try { audio.__jarvisSourceNode.disconnect(an); } catch {}
+                    ttsAnalyserRef.current = null;
+                };
+            } catch (e) {
+                // MediaElementSource errors are non-fatal
+                console.warn('[ArcReactor] TTS audio connect:', e.message);
+            }
+        };
+
+        connectTTS();
+
+        return () => {
+            if (cleanup) cleanup();
+            ttsAnalyserRef.current = null;
+        };
+    }, [status, ttsAudioRef]);
 
     useEffect(() => {
         const mount = mountRef.current;
@@ -143,30 +192,76 @@ export default function ArcReactor3D({ status = 'idle', audioLevel = null }) {
         createRing(76, targetColor, 0.004, -0.009);
         scene.add(ringGroup);
 
+        // ── Burst Particles — emitted on voice peaks ──
+        const burstCount = 200;
+        const burstGeo = new THREE.BufferGeometry();
+        const burstPositions = new Float32Array(burstCount * 3);
+        const burstVelocities = new Float32Array(burstCount * 3);
+        const burstLifetimes = new Float32Array(burstCount);
+        burstGeo.setAttribute('position', new THREE.BufferAttribute(burstPositions, 3));
+
+        const burstMat = new THREE.PointsMaterial({
+            color: targetColor,
+            size: 1.5,
+            transparent: true,
+            opacity: 0.6,
+            blending: THREE.AdditiveBlending,
+        });
+        const burstSystem = new THREE.Points(burstGeo, burstMat);
+        scene.add(burstSystem);
+
+        let burstIndex = 0;
+        let lastBurstTime = 0;
+
         // Animation Loop
         let reqId;
         const startTime = performance.now();
-        const freqData = new Uint8Array(32);
+        const freqData = new Uint8Array(64); // larger FFT for TTS
+        const micFreqData = new Uint8Array(32);
 
         const animate = () => {
             reqId = requestAnimationFrame(animate);
-            const elapsedTime = (performance.now() - startTime) * 0.001;
+            const now = performance.now();
+            const elapsedTime = (now - startTime) * 0.001;
 
-            // Calculate real audio energy (0 to 1) from Web Audio API analyser
+            // ── Determine audio energy from the best available source ──
             let audioEnergy = 0;
-            if (analyserRef.current) {
-                analyserRef.current.getByteFrequencyData(freqData);
-                let sum = 0;
-                for (let k = 0; k < freqData.length; k++) {
-                    sum += freqData[k];
+            let lowEnergy = 0;  // bass → reactor glow
+            let midEnergy = 0;  // mids → ring speed
+            let highEnergy = 0; // highs → particle burst
+
+            // Prefer TTS analyser when speaking, mic when listening
+            const activeAnalyser = ttsAnalyserRef.current || analyserRef.current;
+            const activeFreqData = ttsAnalyserRef.current ? freqData : micFreqData;
+            const binCount = ttsAnalyserRef.current ? 64 : 32;
+
+            if (activeAnalyser) {
+                activeAnalyser.getByteFrequencyData(activeFreqData);
+                let sum = 0, lowSum = 0, midSum = 0, highSum = 0;
+                const third = Math.floor(binCount / 3);
+
+                for (let k = 0; k < binCount; k++) {
+                    const val = activeFreqData[k];
+                    sum += val;
+                    if (k < third) lowSum += val;
+                    else if (k < third * 2) midSum += val;
+                    else highSum += val;
                 }
-                audioEnergy = Math.min(1.0, (sum / freqData.length) / 128.0);
+                audioEnergy = Math.min(1.0, (sum / binCount) / 128.0);
+                lowEnergy = Math.min(1.0, (lowSum / third) / 128.0);
+                midEnergy = Math.min(1.0, (midSum / third) / 128.0);
+                highEnergy = Math.min(1.0, (highSum / (binCount - third * 2)) / 128.0);
             } else if (typeof audioLevel === 'number') {
                 audioEnergy = Math.min(1.0, Math.max(0, audioLevel));
+                lowEnergy = midEnergy = highEnergy = audioEnergy;
             }
 
-            // Rotate particle cloud based on audio energy
-            const rotSpeedMult = 1.0 + audioEnergy * 3.0;
+            // ── Glow intensity from low frequencies ──
+            const glowIntensity = 0.88 + lowEnergy * 0.12;
+            material.opacity = glowIntensity;
+
+            // Rotate particle cloud — bass drives rotation speed
+            const rotSpeedMult = 1.0 + lowEnergy * 4.0;
             particleSystem.rotation.y = elapsedTime * 0.2 * rotSpeedMult;
             particleSystem.rotation.x = Math.sin(elapsedTime * 0.1) * 0.15;
 
@@ -182,7 +277,7 @@ export default function ArcReactor3D({ status = 'idle', audioLevel = null }) {
                 const dirZ = baseDirections[idx + 2];
 
                 // Frequency band index modulation
-                const freqVal = freqData[i % 32] / 255.0 || 0;
+                const freqVal = activeFreqData[i % binCount] / 255.0 || 0;
                 const audioDisplacement = (audioEnergy * 15.0) + (freqVal * 12.0);
 
                 const baseOffset = Math.sin(elapsedTime * pulseSpeed + i * 0.08) * statusAmp;
@@ -194,12 +289,53 @@ export default function ArcReactor3D({ status = 'idle', audioLevel = null }) {
             }
             geometry.attributes.position.needsUpdate = true;
 
-            // Accelerate orbital rings proportional to audio energy & status
-            const ringSpeedBoost = 1.0 + audioEnergy * 4.0 + (status === 'thinking' ? 2.5 : 0);
+            // ── Ring speed driven by mid frequencies ──
+            const ringSpeedBoost = 1.0 + midEnergy * 5.0 + (status === 'thinking' ? 2.5 : 0);
             ringGroup.children.forEach((ring) => {
                 ring.rotation.x += ring.userData.baseSpeedX * ringSpeedBoost;
                 ring.rotation.y += ring.userData.baseSpeedY * ringSpeedBoost;
             });
+
+            // ── Burst particles on high-frequency peaks ──
+            if (highEnergy > 0.4 && now - lastBurstTime > 80) {
+                lastBurstTime = now;
+                const burstAmount = Math.floor(highEnergy * 8);
+                for (let b = 0; b < burstAmount; b++) {
+                    const bi = (burstIndex % burstCount) * 3;
+                    const bAngle = Math.random() * Math.PI * 2;
+                    const bPhi = Math.random() * Math.PI;
+                    burstPositions[bi] = Math.sin(bPhi) * Math.cos(bAngle) * originalRadius;
+                    burstPositions[bi + 1] = Math.sin(bPhi) * Math.sin(bAngle) * originalRadius;
+                    burstPositions[bi + 2] = Math.cos(bPhi) * originalRadius;
+                    burstVelocities[bi] = Math.sin(bPhi) * Math.cos(bAngle) * (1.5 + highEnergy * 3);
+                    burstVelocities[bi + 1] = Math.sin(bPhi) * Math.sin(bAngle) * (1.5 + highEnergy * 3);
+                    burstVelocities[bi + 2] = Math.cos(bPhi) * (1.5 + highEnergy * 3);
+                    burstLifetimes[burstIndex % burstCount] = 1.0;
+                    burstIndex++;
+                }
+            }
+
+            // Update burst particles
+            for (let i = 0; i < burstCount; i++) {
+                if (burstLifetimes[i] > 0) {
+                    burstLifetimes[i] -= 0.025;
+                    const bi = i * 3;
+                    burstPositions[bi] += burstVelocities[bi];
+                    burstPositions[bi + 1] += burstVelocities[bi + 1];
+                    burstPositions[bi + 2] += burstVelocities[bi + 2];
+                    // Slow down
+                    burstVelocities[bi] *= 0.96;
+                    burstVelocities[bi + 1] *= 0.96;
+                    burstVelocities[bi + 2] *= 0.96;
+                } else {
+                    // Hide dead particles
+                    burstPositions[i * 3] = 0;
+                    burstPositions[i * 3 + 1] = 0;
+                    burstPositions[i * 3 + 2] = 9999;
+                }
+            }
+            burstGeo.attributes.position.needsUpdate = true;
+            burstMat.opacity = 0.3 + highEnergy * 0.5;
 
             renderer.render(scene, camera);
         };
@@ -226,6 +362,8 @@ export default function ArcReactor3D({ status = 'idle', audioLevel = null }) {
             }
             geometry.dispose();
             material.dispose();
+            burstGeo.dispose();
+            burstMat.dispose();
             renderer.dispose();
         };
     }, [status, audioLevel]);
@@ -243,4 +381,3 @@ export default function ArcReactor3D({ status = 'idle', audioLevel = null }) {
         />
     );
 }
-

@@ -1,62 +1,116 @@
-# J.A.R.V.I.S. — AI Voice Assistant & Real-Time OS Desktop Agent
+# J.A.R.V.I.S. — AI Voice Assistant & Spatial HUD with Desktop Agent
 
 [![Next.js 16](https://img.shields.io/badge/Next.js-16%20App%20Router-black?style=flat-square&logo=next.js)](https://nextjs.org/)
 [![React 19](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react)](https://react.dev/)
+[![Three.js](https://img.shields.io/badge/Three.js-WebGL%203D-black?style=flat-square&logo=three.js)](https://threejs.org/)
+[![Groq AI](https://img.shields.io/badge/AI-Groq%20GPT--OSS%20120B-orange?style=flat-square)](https://groq.com/)
 [![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?style=flat-square&logo=python)](https://www.python.org/)
-[![Flask IPC](https://img.shields.io/badge/IPC-Flask%20%2B%20WebSocket-000000?style=flat-square&logo=flask)](https://flask.palletsprojects.com/)
-[![Groq Llama 3.3](https://img.shields.io/badge/AI-Groq%20Llama%203.3%2070B-orange?style=flat-square)](https://groq.com/)
 [![License MIT](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
 
-An advanced, Iron Man-inspired **AI Voice Assistant & Interactive System HUD**. Combines a Next.js 16 frontend featuring real-time WebGL canvas visualizers with a Python desktop IPC daemon (`agent.py`) for low-latency desktop application control, process monitoring, and real-time hardware telemetry streaming.
+An advanced, Iron Man-inspired **AI Voice Assistant & Interactive Spatial HUD**. Built with Next.js 16, Three.js WebGL, Web Audio API spatial sound, and a Python desktop IPC daemon for real-time OS control. Features a fully 3D parallax holographic interface with voice-reactive particle systems, HRTF spatial audio, physics-based floating panels, and multi-monitor awareness.
 
-🔗 **Live Interface Demo:** [jarvis-theta-indol.vercel.app](https://jarvis-theta-indol.vercel.app)
+🔗 **Live Demo:** [jarvis-theta-indol.vercel.app](https://jarvis-theta-indol.vercel.app)
 
 ---
 
 ## 📐 System Architecture
 
-Browsers operate within strict security sandboxes and cannot directly spawn operating system processes or execute desktop binaries. **J.A.R.V.I.S.** bridges this boundary using a dual-layer architecture:
-
-1. **Frontend HUD (Next.js 16 / React 19)**: Handles speech recognition, streaming AI logic, Web Audio synthesis, WebGL visualizers, and interactive state management.
-2. **Local IPC Agent Daemon (`agent.py`)**: A Python background process providing low-latency **WebSocket telemetry streaming (`ws://localhost:5002`)** and a **REST execution API (`http://localhost:5001`)** for OS-level control.
-
 ```mermaid
 graph TD
-    subgraph Browser ["Web Browser (Next.js 16 HUD Client)"]
+    subgraph Browser ["Web Browser — Next.js 16 Spatial HUD"]
         User([User Input: Voice / Text]) --> Speech[Web Speech API]
-        Speech --> ChatRoute["/api/chat (Groq Llama 3.3 70B)"]
-        ChatRoute --> TTS["/api/speak (ElevenLabs / Web Speech)"]
-        ChatRoute --> ToolEngine[Tool Calling Engine]
-        UI[Iron Man HUD / Canvas / WebGL] <--> SocketHook["useLocalAgentWs Hook"]
+        Speech --> ChatRoute["/api/chat — Groq AI + Tool Calling"]
+        ChatRoute --> TTS["/api/speak — ElevenLabs TTS"]
+        ChatRoute --> Tools[14 AI Tool Functions]
+        
+        Mouse([Mouse Position]) --> Parallax[Spatial Parallax Engine]
+        TTS --> AudioAnalyser[Web Audio AnalyserNode]
+        AudioAnalyser --> Reactor[3D Arc Reactor — Three.js]
+        
+        SpatialAudio[HRTF Spatial Audio] --> PannerNode[3D Directional Sound]
+        Panels[Physics Draggable Panels] --> Springs[Spring + Momentum Engine]
+        
+        UI[HUD Components x18] <--> WsHook["useLocalAgentWs Hook"]
     end
 
-    subgraph LocalSystem ["Host System Daemon (Python agent.py)"]
-        SocketHook <-->|Bi-Directional Stream :5002| WSIPC["WebSocket Telemetry Server"]
-        SocketHook <-->|HTTP REST Requests :5001| REST["Flask REST API Engine"]
-        REST --> Subprocess["OS Subprocess Manager (code, chrome, terminal, etc.)"]
-        REST --> SystemStats["psutil Hardware Metrics & Process Killing"]
-        REST --> ActiveWin["Active Window Detector (xdotool / Win32)"]
+    subgraph LocalOS ["Host System Daemon — Python agent.py"]
+        WsHook <-->|WebSocket :5002| WSIPC["Live Telemetry Stream"]
+        WsHook <-->|HTTP REST :5001| REST["Flask REST Engine"]
+        REST --> Apps["App Launcher (code, chrome, etc.)"]
+        REST --> Stats["psutil CPU/RAM/Disk Metrics"]
+        REST --> Process["Process Monitor & Kill"]
     end
 ```
 
 ---
 
-## ✨ Key Features
+## ✨ Feature Overview
 
-### 🎙️ Multimodal AI & Voice Engine
-* **Hands-Free Wake-Word Detection**: Supports always-on listening ("Wake up JARVIS") and spoken sleep directives ("JARVIS sleep").
-* **Streaming AI Tool Calling**: Powered by Groq Llama 3.3 70B with real-time web search integration (Serper API), live weather fetch (`wttr.in`), and Wikipedia lookups.
-* **Low-Latency Voice Synthesis**: Fluid voice responses using ElevenLabs TTS with fallback to browser native SpeechSynthesis.
+### 🎙️ AI Voice Engine
+| Feature | Details |
+|---|---|
+| **Wake Word Detection** | "Wake up Jarvis" activates, "Jarvis sleep" suspends |
+| **Always-On Listening** | Toggle persistent microphone monitoring |
+| **Streaming AI Chat** | Groq GPT-OSS 120B with 14 tool-calling functions |
+| **Voice Synthesis** | ElevenLabs TTS (7 voice presets) with browser SpeechSynthesis fallback |
+| **Conversation Memory** | Persistent localStorage-backed fact retention across sessions |
 
-### 🖥️ Real-Time Desktop Control & Telemetry (IPC Agent)
-* **OS Application Launching**: Auto-detects local installed apps (`code`, `google-chrome`, `firefox`, `gnome-terminal`, `vlc`, `nautilus`, `telegram-desktop`) and launches them on request.
-* **Live System Metrics Stream**: 1-second interval WebSocket stream for CPU %, RAM %, Disk %, uptime, and active window detection.
-* **Process Monitor & Process Killing**: View top consuming processes and terminate stuck PID processes directly from the HUD.
+### 🔧 14 AI Tool Functions
+| Tool | What It Does |
+|---|---|
+| `search_web` | Real-time Google search via Serper API |
+| `search_news` | Latest headlines via Serper News API |
+| `get_weather` | Live weather from wttr.in |
+| `get_location` | Reverse geocode browser coordinates |
+| `search_wikipedia` | Wikipedia article summaries |
+| `calculate` | Safe math expression evaluator |
+| `set_timer` | Countdown timer with browser notifications |
+| `set_reminder` | Delayed reminder notifications |
+| `open_url` | Open websites in new tabs |
+| `open_app` | Launch desktop apps via IPC agent |
+| `control_volume` | System volume up/down/mute |
+| `media_control` | Play/pause/next/previous media |
+| `execute_system_command` | Run terminal commands (with safety filters) |
+| `remember_fact` | Persist user preferences to memory |
 
-### 🎨 Cinematic Sci-Fi HUD & Audio Synthesis
-* **3D Arc Reactor & Canvas Visualizers**: Dynamic WebGL core reactor and real-time FFT-like audio waveform canvas animations.
-* **Zero-Asset Web Audio API Sound Generator**: UI click feedback, access-granted tones, and mechanical boot sounds synthesized directly in code (0 external audio assets).
-* **Persistent Layout Engine**: Drag-and-drop dashboard panels with automatic layout versioning and `localStorage` state persistence.
+### 🌌 Spatial UI System (5 Features)
+| Feature | How It Works |
+|---|---|
+| **Parallax HUD** | Mouse position drives CSS perspective transforms — background shifts ±20px, HUD tilts ±1.5° |
+| **Voice-Reactive Arc Reactor** | TTS audio → `MediaElementSource` → `AnalyserNode` → FFT split: bass=glow, mids=ring speed, highs=particle bursts |
+| **Physics Floating Panels** | Spring momentum on drag release, edge bouncing, idle breathing animation (sine bob), magnetic edge snapping |
+| **HRTF Spatial Audio** | `PannerNode` with HRTF model maps UI click screen position to 3D directional sound |
+| **Multi-Monitor Tracking** | Polls `window.screenX/Y` every 500ms, reports quadrant (TL/TR/BL/BR) and monitor index |
+
+### 🖥️ Desktop Agent (Python IPC)
+| Feature | Details |
+|---|---|
+| **App Launching** | VS Code, Chrome, Firefox, Terminal, VLC, Nautilus, Telegram |
+| **Live Telemetry** | 1-second WebSocket stream: CPU%, RAM%, Disk%, uptime, active window |
+| **Process Monitor** | View top processes, kill PIDs directly from HUD |
+| **Volume/Media** | System volume and media playback control |
+
+### 🎨 HUD Dashboard — 18 Components
+| Component | Description |
+|---|---|
+| `CenterHUD` | Main display with SVG rings, scanning sweep, status readouts |
+| `ArcReactor3D` | Three.js WebGL particle sphere (1400 particles + 3 orbital rings + burst system) |
+| `Navbar` | Navigation bar with spatial audio click/hover sounds |
+| `NeuralSync` | Animated neural activity indicator |
+| `BioMetrics` | Simulated biometric readouts |
+| `AudioVisualizer` | Real-time canvas FFT waveform |
+| `SystemLog` | Scrolling event log with timestamps |
+| `SystemTopology` | Network topology visualization |
+| `SatelliteLink` | Satellite connection status display |
+| `AtmosphericData` | Live weather data display (uses Weather API) |
+| `SecurityStatus` | Encryption/security status panel |
+| `SystemTerminal` | Interactive terminal command interface |
+| `CalculatorPanel` | Full arithmetic calculator |
+| `TimerPanel` | Timer creation and active timer display |
+| `NotebookPanel` | Persistent notes (localStorage backed) |
+| `ProcessMonitorPanel` | Live process list with kill functionality |
+| `SettingsPanel` | Voice selection, always-on toggle, history management |
+| `AboutModal` | Project information modal |
 
 ---
 
@@ -64,92 +118,137 @@ graph TD
 
 | Category | Technology |
 |---|---|
-| **Frontend Framework** | Next.js 16 (App Router), React 19, Tailwind CSS |
-| **Graphics & Audio** | Canvas 2D API, Web Audio API, SVG Animation |
-| **LLM & Tool Orchestration** | Groq API (`llama-3.3-70b-versatile`), Serper API, wttr.in |
-| **Voice Pipelines** | Web Speech API, ElevenLabs Speech API |
-| **Agent Daemon** | Python 3.12, Flask, Flask-CORS, `psutil`, `websockets` |
-| **Protocol** | WebSockets (IPC Telemetry :5002), HTTP REST (Command Execution :5001) |
+| **Frontend** | Next.js 16 (App Router), React 19 |
+| **3D Graphics** | Three.js (WebGL), SVG animations, Canvas 2D API |
+| **Audio** | Web Audio API (synthesized sounds), HRTF spatial audio, ElevenLabs TTS |
+| **Animation** | Framer Motion, CSS keyframe animations, requestAnimationFrame |
+| **AI / LLM** | Groq SDK (`openai/gpt-oss-120b` with fallback chain) |
+| **Search** | Serper API (web + news), wttr.in (weather), Wikipedia REST API |
+| **Desktop Agent** | Python 3.12, Flask, Flask-CORS, psutil, websockets |
+| **State** | localStorage (layout positions, conversation history, facts, preferences) |
 
 ---
 
 ## 🚀 Getting Started
 
-### 1. Clone the Repository
+### Prerequisites
+- **Node.js** 18+ and **npm**
+- **Google Chrome** or **Microsoft Edge** (required for Web Speech API)
+- **Python 3.10+** (optional — only for desktop agent features)
+
+### 1. Clone & Install
 ```bash
 git clone https://github.com/nilanjanajui/jarvis.git
 cd jarvis
-```
-
-### 2. Frontend Setup
-Install dependencies:
-```bash
 npm install
 ```
 
-Create a `.env.local` file in the root directory:
+### 2. Configure API Keys
+Create `.env.local` in the project root:
 ```env
-GROQ_API_KEY=your_groq_api_key_here
-SERPER_API_KEY=your_serper_api_key_here
-ELEVENLABS_API_KEY=your_elevenlabs_api_key_here
+GROQ_API_KEY=your_groq_api_key          # Required — get from console.groq.com
+SERPER_API_KEY=your_serper_api_key      # Required for web/news search
+ELEVENLABS_API_KEY=your_elevenlabs_key  # Optional — falls back to browser TTS
 ```
 
-Start the Next.js dev server:
+### 3. Start Development Server
 ```bash
 npm run dev
 ```
+Open **http://localhost:3000** in Chrome or Edge.
 
-### 3. Desktop Agent Daemon Setup (Optional for Local OS Control)
-To enable desktop app launching, live RAM/CPU metrics, and process control:
-
+### 4. Desktop Agent Setup (Optional)
+To enable app launching, system metrics, and process control:
 ```bash
-# In a new terminal window
+# In a separate terminal
 python3 -m venv jarvis-env
-source jarvis-env/bin/activate    # On Windows: jarvis-env\Scripts\activate
-
+source jarvis-env/bin/activate          # Windows: jarvis-env\Scripts\activate
 pip install flask flask-cors psutil websockets
 python agent.py
 ```
 
-Open `http://localhost:3000` in Google Chrome or Microsoft Edge.
-
-> **Note:** When accessing via `http://localhost:3000`, the web HUD automatically establishes a WebSocket connection to `ws://localhost:5002`, displaying **`● WS IPC STREAM`** in green on the HUD status bar.
+When connected, the status bar shows **● WS IPC STREAM** in green.
 
 ---
 
-## 🗣️ Voice & Tool Commands
+## 🗣️ Voice Commands
 
-| Command | Action Performed |
+| Command | What Happens |
 |---|---|
-| *"Wake up JARVIS"* | Triggers mechanical audio boot sequence & voice greeting |
-| *"JARVIS sleep"* | Suspends always-on voice recognition |
-| *"What is the weather in Tokyo?"* | Fetches live meteorological data via location API |
-| *"Open VS Code"* | Sends REST IPC request to `agent.py` to spawn `code` process |
-| *"Open Chrome"* | Launches Google Chrome binary on host system |
-| *"What is 847 multiplied by 29?"* | Evaluates expression via built-in HUD Calculator tool |
-| *"Set a timer for 15 minutes"* | Initializes countdown widget with native browser notifications |
+| "Wake up Jarvis" | Mechanical boot sequence + voice greeting |
+| "Jarvis sleep" | Suspends always-on listening |
+| "What's the weather in Tokyo?" | Fetches live weather data |
+| "Search for latest AI news" | Returns news headlines |
+| "Open VS Code" | Launches VS Code via agent daemon |
+| "What is 847 times 29?" | Calculates and speaks result |
+| "Set a timer for 10 minutes" | Creates countdown with notification |
+| "Remind me to call mom in 30 minutes" | Schedules a reminder notification |
+| "Remember that my favorite color is blue" | Saves to persistent memory |
+| "Who was Alan Turing?" | Wikipedia lookup |
+
+---
+
+## 📂 Project Structure
+
+```
+jarvis/
+├── src/
+│   ├── app/
+│   │   ├── page.js                 # Main HUD page (980+ lines)
+│   │   ├── layout.js               # Root layout with fonts & metadata
+│   │   ├── globals.css             # All CSS animations & design tokens
+│   │   └── api/
+│   │       ├── chat/route.js       # AI chat endpoint (14 tools, fallback models)
+│   │       ├── speak/route.js      # ElevenLabs TTS proxy
+│   │       ├── weather/route.js    # Weather API with geolocation
+│   │       └── settings/route.js   # Settings persistence
+│   ├── components/                 # 18 React components
+│   │   ├── CenterHUD.jsx          # Central radar + reactor display
+│   │   ├── ArcReactor3D.jsx       # Three.js voice-reactive particle sphere
+│   │   ├── Draggable.jsx          # Physics-based drag with springs
+│   │   ├── Navbar.jsx             # Navigation with spatial audio
+│   │   ├── HudTools.jsx           # Calculator, Timer, Notebook, Process panels
+│   │   └── ... (14 more components)
+│   └── lib/                       # Shared utilities & hooks
+│       ├── hudSounds.js           # Web Audio synthesized sound library
+│       ├── spatialAudio.js        # HRTF 3D directional audio engine
+│       ├── useSpatialMouse.js     # Mouse parallax tracking hook
+│       ├── useWindowPosition.js   # Multi-monitor position detection
+│       ├── useLocalAgentWs.js     # WebSocket + REST agent hook
+│       ├── memory.js              # localStorage fact retention
+│       └── voices.js              # ElevenLabs voice presets
+├── agent.py                       # Python desktop IPC daemon
+├── .env.local                     # API keys (not committed)
+└── package.json
+```
 
 ---
 
 ## 🔒 Security & Privacy
 
-* **Local Sandboxing**: `agent.py` strictly binds to `127.0.0.1` / `localhost` and is never exposed to external network interfaces.
-* **Destructive Command Filters**: Shell execution endpoints filter high-risk root destruction strings.
-* **Graceful Fallback**: Browsers visiting the hosted Vercel link without `agent.py` running function fully for AI conversation, voice TTS, weather, calculator, and timers without crashing.
+- **Local-Only Agent**: `agent.py` binds exclusively to `127.0.0.1` — never exposed to network
+- **Command Filtering**: Destructive shell commands are filtered before execution
+- **No Data Collection**: All conversation history and user facts stored in browser localStorage only
+- **Graceful Degradation**: Works fully without agent daemon (AI, voice, weather, calculator, timers all function independently)
 
 ---
 
-## ⚠️ Troubleshooting: Why Vercel says "Agent Offline"
+## ⚠️ Troubleshooting
 
-If you visit the **live Vercel link** (`https://...`), the desktop control features will show as "Agent Offline". This is because of fundamental web security rules, not a bug in the code:
-
-1. **Mixed Content Blocking**: The live site is served securely over **HTTPS**. The local Python agent runs insecurely on plain **HTTP/WS** (`http://localhost:5001`). Modern browsers (Chrome, Safari, Firefox) strictly block secure websites from making unencrypted requests to prevent eavesdropping and data injection.
-2. **Localhost Isolation**: `localhost` refers to the computer of the person *viewing* the website. When a recruiter or friend opens the Vercel link, their browser looks for `agent.py` on *their* laptop or phone, where it isn't running.
-
-**How to test Desktop Control:**
-Always use `http://localhost:3000` (run `npm run dev`) alongside `agent.py`. Since both run over local HTTP, the browser allows the connection perfectly without security warnings!
+| Issue | Solution |
+|---|---|
+| "Agent Offline" on Vercel | Expected — agent requires `localhost`. Run `npm run dev` locally |
+| Voice not working | Use Chrome or Edge. Safari/Firefox lack Web Speech API support |
+| "Browser Voice" instead of ElevenLabs | Check `ELEVENLABS_API_KEY` in `.env.local` or quota limits |
+| Weather errors | Intermittent — wttr.in has occasional socket timeouts, auto-retries |
+| Panels stuck offscreen | Click **RESET LAYOUT** in the status bar |
 
 ---
+
 ## 📜 License
 
 Distributed under the MIT License. See `LICENSE` for more information.
+
+---
+
+**Built by [Nilanjana](https://github.com/nilanjanajui)** — Inspired by Tony Stark's J.A.R.V.I.S.

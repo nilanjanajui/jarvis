@@ -1,15 +1,22 @@
 'use client';
 
 import { useState } from 'react';
+import { playSpatialClick, playSpatialBlip } from '@/lib/spatialAudio';
 
 export default function Navbar({ onSettingsClick, settingsOpen, activeItem = 'DASHBOARD', onNavigate, onToggleProcesses }) {
     const items = ['HOME', 'DASHBOARD', 'PROCESSES', 'SETTINGS', 'ABOUT'];
     const [hovered, setHovered] = useState(null);
 
-    const handleClick = (item) => {
+    const handleClick = (item, e) => {
+        playSpatialClick(e.clientX, e.clientY);
         if (item === 'SETTINGS') onSettingsClick?.();
         else if (item === 'PROCESSES') onToggleProcesses?.();
         else onNavigate?.(item);
+    };
+
+    const handleHover = (item, e) => {
+        setHovered(item);
+        playSpatialBlip(e.clientX, e.clientY);
     };
 
     return (
@@ -30,8 +37,8 @@ export default function Navbar({ onSettingsClick, settingsOpen, activeItem = 'DA
                     return (
                         <button
                             key={item}
-                            onClick={() => handleClick(item)}
-                            onMouseEnter={() => setHovered(item)}
+                            onClick={(e) => handleClick(item, e)}
+                            onMouseEnter={(e) => handleHover(item, e)}
                             onMouseLeave={() => setHovered(null)}
                             style={{
                                 fontFamily: 'Orbitron',
