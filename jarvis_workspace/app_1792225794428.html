@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>J.A.R.V.I.S. Console</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    // Tailwind config for dark mode
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            primary: '#3b82f6',
+            secondary: '#6366f1',
+          },
+        },
+      },
+    };
+  </script>
+</head>
+<body class="h-full bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 flex">
+  <!-- Sidebar -->
+  <aside id="sidebar" class="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col transition-transform duration-300">
+    <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+      <h1 class="text-xl font-semibold text-primary">Modules</h1>
+      <button id="toggleSidebar" class="lg:hidden text-gray-600 dark:text-gray-300">
+        ✕
+      </button>
+    </div>
+    <nav class="flex-1 overflow-y-auto py-2">
+      <ul class="space-y-1 px-2">
+        <li><button class="w-full text-left px-3 py-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700">Home</button></li>
+        <li><button class="w-full text-left px-3 py-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700">Weather</button></li>
+        <li><button class="w-full text-left px-3 py-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700">News</button></li>
+        <li><button class="w-full text-left px-3 py-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700">Settings</button></li>
+      </ul>
+    </nav>
+    <div class="p-4 border-t border-gray-200 dark:border-gray-700">
+      <button id="darkModeToggle" class="w-full flex items-center justify-center px-3 py-2 bg-primary text-white rounded hover:bg-primary/80">
+        Toggle Dark Mode
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="flex-1 flex flex-col overflow-hidden">
+    <!-- Header -->
+    <header class="flex items-center justify-between p-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+      <button id="openSidebar" class="lg:hidden text-gray-600 dark:text-gray-300">
+        ☰
+      </button>
+      <h2 class="text-2xl font-semibold">J.A.R.V.I.S.</h2>
+      <div></div>
+    </header>
+
+    <!-- Console -->
+    <section id="console" class="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 dark:bg-gray-900">
+      <!-- Messages will be injected here -->
+    </section>
+
+    <!-- Input Bar -->
+    <footer class="flex items-center p-4 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+      <button id="micBtn" class="mr-2 p-2 text-primary rounded-full hover:bg-primary/10 focus:outline-none focus:ring-2 focus:ring-primary">
+        🎤
+      </button>
+      <input
+        id="userInput"
+        type="text"
+        placeholder="Ask J.A.R.V.I.S..."
+        class="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded focus:outline-none focus:ring-2 focus:ring-primary"
+      />
+      <button id="sendBtn" class="ml-2 px-4 py-2 bg-primary text-white rounded hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary">
+        Send
+      </button>
+    </footer>
+  </main>
+
+  <script>
+    // State
+    const messages = [];
+
+    // Elements
+    const consoleEl = document.getElementById('console');
+    const userInput = document.getElementById('userInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const micBtn = document.getElementById('micBtn');
+    const darkModeToggle = document.getElementById('darkModeToggle');
+    const sidebar = document.getElementById('sidebar');
+    const openSidebar = document.getElementById('openSidebar');
+    const toggleSidebar = document.getElementById('toggleSidebar');
+
+    // Functions
+    function addMessage(content, sender = 'user') {
+      const msg = { content, sender, timestamp: new Date() };
+      messages.push(msg);
+      renderMessage(msg);
+    }
+
+    function renderMessage({ content, sender, timestamp }) {
+      const msgDiv = document.createElement('div');
+      msgDiv.className = `max-w-xl w-full ${sender === 'user' ? 'ml-auto' : 'mr-auto'}`;
+
+      const bubble = document.createElement('div');
+      bubble.className = `p-3 rounded-lg shadow ${
+        sender === 'user'
+          ? 'bg-primary text-white'
+          : 'bg-gray-200 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
+      }`;
+      bubble.textContent = content;
+
+      const time = document.createElement('div');
+      time.className = 'text-xs text-gray-500 mt-1 text-right';
+      time.textContent = timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      msgDiv.appendChild(bubble);
+      msgDiv.appendChild(time);
+      consoleEl.appendChild(msgDiv);
+      consoleEl.scrollTop = consoleEl.scrollHeight;
+    }
+
+    function handleUserMessage() {
+      const text = userInput.value.trim();
+      if (!text) return;
+      addMessage(text, 'user');
+      userInput.value = '';
+      simulateJarvisResponse(text);
+    }
+
+    function simulateJarvisResponse(query) {
+      // Simple mock logic
+      let response = "I'm not sure how to answer that.";
+      const lower = query.toLowerCase();
+      if (lower.includes('time')) {
+        response = `The current time is ${new Date().toLocaleTimeString()}.`;
+      } else if (lower.includes('date')) {
+        response = `Today's date is ${new Date().toLocaleDateString()}.`;
+      } else if (lower.includes('joke')) {
+        response = "Why did the developer go broke? Because they used up all their cache.";
+      } else if (lower.includes('weather')) {
+        response = "It's sunny with a chance of code!";
+      }
+
+      setTimeout(() => addMessage(response, 'jarvis'), 800);
+    }
+
+    // Voice Recognition
+    let recognition;
+    if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      recognition = new SpeechRecognition();
+      recognition.lang = 'en-US';
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+
+      recognition.addEventListener('result', e => {
+        const transcript = e.results[0][0].transcript;
+        userInput.value = transcript;
+        handleUserMessage();
+      });
+
+      recognition.addEventListener('error', e => {
+        console.error('Speech recognition error', e);
+      });
+    } else {
+      micBtn.disabled = true;
+      micBtn.title = 'Speech recognition not supported';
+    }
+
+    // Event Listeners
+    sendBtn.addEventListener('click', handleUserMessage);
+    userInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter') handleUserMessage();
+    });
+
+    micBtn.addEventListener('click', () => {
+      if (!recognition) return;
+      recognition.start();
+    });
+
+    darkModeToggle.addEventListener('click', () => {
+      document.documentElement.classList.toggle('dark');
+    });
+
+    openSidebar.addEventListener('click', () => {
+      sidebar.classList.remove('-translate-x-full');
+    });
+    toggleSidebar.addEventListener('click', () => {
+      sidebar.classList.add('-translate-x-full');
+    });
+
+    // Initial messages
+    addMessage('Hello! I am J.A.R.V.I.S., your personal assistant. How can I help you today?', 'jarvis');
+  </script>
+</body>
+</html>

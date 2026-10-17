@@ -1,17 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 
 export default function Navbar({ onSettingsClick, settingsOpen, activeItem = 'DASHBOARD', onNavigate, onToggleProcesses }) {
-    const items = ['HOME', 'DASHBOARD', 'PROCESSES', 'SWARM', 'SETTINGS', 'ABOUT'];
+    const items = ['HOME', 'DASHBOARD', 'PROCESSES', 'SETTINGS', 'ABOUT'];
     const [hovered, setHovered] = useState(null);
-    const router = useRouter();
 
     const handleClick = (item) => {
         if (item === 'SETTINGS') onSettingsClick?.();
         else if (item === 'PROCESSES') onToggleProcesses?.();
-        else if (item === 'SWARM') router.push('/swarm');
         else onNavigate?.(item);
     };
 

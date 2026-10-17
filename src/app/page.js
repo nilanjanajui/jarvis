@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import SettingsPanel from '@/components/SettingsPanel';
 import AboutModal from '@/components/AboutModal';
@@ -41,7 +40,6 @@ const ids = [
 
 
 export default function JarvisPage() {
-  const router = useRouter();
   const [status, setStatus] = useState('idle');
   const [transcript, setTranscript] = useState('');
   const [streamingText, setStreamingText] = useState('');
@@ -216,6 +214,11 @@ export default function JarvisPage() {
         }
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
+        // Guard: audio element may be null if page navigated away during the fetch
+        if (!audioRef.current) {
+          URL.revokeObjectURL(url);
+          throw new Error('Audio element unmounted — falling back to browser TTS');
+        }
         audioRef.current.src = url;
         audioRef.current.onended = () => { resumeListening(); URL.revokeObjectURL(url); };
         await audioRef.current.play();
@@ -350,12 +353,7 @@ export default function JarvisPage() {
       }, action.seconds * 1000);
       return;
     }
-
-    if (action.type === 'swarm') {
-      router.push('/swarm?task=' + encodeURIComponent(action.task));
-      setLogLine(`Deployed Swarm for task: ${action.task}`);
-    }
-  }, [agentConnected, speak, startTimer, router]);
+  }, [agentConnected, speak, startTimer]);
 
   const requestNotificationPermission = useCallback(() => {
     if ('Notification' in window && Notification.permission === 'default') {

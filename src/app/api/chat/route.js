@@ -212,18 +212,6 @@ const tools = [
             },
         },
     },
-    {
-        type: 'function',
-        function: {
-            name: 'start_swarm_task',
-            description: 'Start an autonomous AI agent swarm to build a complex project, like a web app, a game, or a script. Use when user says "build an app", "create a project", or "code a...".',
-            parameters: {
-                type: 'object',
-                properties: { task: { type: 'string', description: 'The overarching task description for the swarm to build.' } },
-                required: ['task'],
-            },
-        },
-    },
 ];
 
 async function handleToolCall(toolCall, userCoords) {
@@ -245,7 +233,6 @@ async function handleToolCall(toolCall, userCoords) {
         if (name === 'media_control') return `Media action executed: ${args.action}`;
         if (name === 'execute_system_command') return `Command prepared for approval: ${args.command}`;
         if (name === 'remember_fact') return `Fact retained in memory: ${args.fact}`;
-        if (name === 'start_swarm_task') return `Swarm deployed for task: ${args.task}. Please open the Swarm Monitoring UI.`;
         return 'Unknown tool.';
     };
 
@@ -258,7 +245,6 @@ async function handleToolCall(toolCall, userCoords) {
         if (name === 'media_control') return { type: 'media', action: args.action };
         if (name === 'execute_system_command') return { type: 'shell', command: args.command };
         if (name === 'remember_fact') return { type: 'remember', fact: args.fact };
-        if (name === 'start_swarm_task') return { type: 'swarm', task: args.task };
         return null;
     };
 
@@ -337,16 +323,11 @@ TOOL NARRATION STYLE:
 - Timers/reminders: Confirm naturally. "Timer's set, sir - I'll let you know in ten minutes." Convert spoken durations like "10 minutes" to seconds yourself before calling the tool.`;
 }
 
-// Fallback model list for resilient Groq API calls
+// Fallback model list — only models confirmed available on this Groq account
 const MODELS = [
-    'openai/gpt-oss-120b',
-    'openai/gpt-oss-20b',
-    'qwen/qwen3.8-27b',
-    'qwen/qwen3.6-27b',
-    'groq/compound',
-    'groq/compound-mini',
-    'llama-3.3-70b-versatile',
-    'llama-3.1-8b-instant',
+    'openai/gpt-oss-120b',  // most capable — try first
+    'openai/gpt-oss-20b',   // faster fallback
+    'qwen/qwen3.8-27b',     // last resort
 ];
 
 async function createCompletionWithFallback(params) {
