@@ -247,7 +247,7 @@ jarvis/
 
 ## 📜 License
 
-Distributed under the MIT License. See `LICENSE` for more information.
+This is a personal, self-associated project created and maintained by Nilanjana Das Jui. All rights reserved. No license is granted for copying, modifying, or distributing this project without the author’s permission.
 
 ---
 
