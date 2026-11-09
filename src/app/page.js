@@ -29,17 +29,23 @@ import {
 import { playSpatialClick } from '@/lib/spatialAudio';
 import { useSpatialMouse } from '@/lib/useSpatialMouse';
 import { useWindowPosition } from '@/lib/useWindowPosition';
-import { saveFact } from '@/lib/memory';
+// FIX: getRelevantFactsPrompt was never imported, so saved facts never reached the model
+import { saveFact, getRelevantFactsPrompt } from '@/lib/memory';
 import Draggable from '@/components/Draggable';
 
 const AGENT = 'http://localhost:5001';
 
-
-const ids = [
+// FIX: single source of truth for panel ids (was duplicated three times, one copy unused)
+const PANEL_IDS = [
   'neural-sync', 'bio-metrics', 'audio-viz', 'system-log', 'active-timers',
   'system-topology', 'satellite-link', 'atmospheric-data', 'security-status', 'system-terminal',
   'calculator-panel', 'timer-panel', 'notebook-panel',
 ];
+
+// FIX: defence in depth — the server already validates, but never hand a non-http(s) URL to window.open
+const isHttpUrl = (u) => {
+  try { return ['http:', 'https:'].includes(new URL(u).protocol); } catch { return false; }
+};
 
 
 export default function JarvisPage() {
@@ -81,15 +87,10 @@ export default function JarvisPage() {
       try {
         const savedLayoutVer = localStorage.getItem('jarvis-layout-version');
         if (savedLayoutVer !== LAYOUT_VERSION) {
-          const panelIds = [
-            'neural-sync', 'bio-metrics', 'audio-viz', 'system-log', 'active-timers',
-            'system-topology', 'satellite-link', 'atmospheric-data', 'security-status',
-            'system-terminal', 'calculator-panel', 'timer-panel', 'notebook-panel',
-          ];
-          panelIds.forEach((id) => localStorage.removeItem(`jarvis-pos-${id}`));
+          PANEL_IDS.forEach((id) => localStorage.removeItem(`jarvis-pos-${id}`));
           localStorage.setItem('jarvis-layout-version', LAYOUT_VERSION);
         }
-      } catch {}
+      } catch { }
 
       try {
         const saved = localStorage.getItem('jarvis-history');
@@ -101,14 +102,14 @@ export default function JarvisPage() {
         if (localStorage.getItem('jarvis-always-on-default') === 'true') {
           setAlwaysOnDefault(true);
         }
-      } catch {}
+      } catch { }
       try {
         const savedVoice = localStorage.getItem('jarvis-voice-id');
         if (savedVoice) setVoiceId(savedVoice);
-      } catch {}
+      } catch { }
     }, 0);
     return () => clearTimeout(t);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [activeTimers, setActiveTimers] = useState([]);
   const [showCalculator, setShowCalculator] = useState(false);
@@ -211,11 +212,13 @@ export default function JarvisPage() {
         const res = await fetch('/api/speak', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text, voiceId: voiceIdRef.current }),
+          // FIX: /api/speak now rejects text over 3000 chars
+          body: JSON.stringify({ text: text.slice(0, 3000), voiceId: voiceIdRef.current }),
         });
         if (!res.ok) {
           const errBody = await res.json().catch(() => ({}));
-          throw new Error(`ElevenLabs ${res.status}: ${errBody.detail || 'unknown'}`);
+          // FIX: server now returns { error, status } instead of { detail }
+          throw new Error(`ElevenLabs ${res.status}: ${errBody.error || errBody.status || 'unknown'}`);
         }
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
@@ -227,11 +230,23 @@ export default function JarvisPage() {
         audioRef.current.src = url;
         audioRef.current.onended = () => { resumeListening(); URL.revokeObjectURL(url); };
         await audioRef.current.play();
+        // FIX: set after play() resolves so a decode failure falls through to the browser-TTS
+        // fallback below instead of double-speaking; without this, a mid-playback error left
+        // the UI stuck in 'speaking'
+        if (audioRef.current) {
+          audioRef.current.onerror = () => { resumeListening(); URL.revokeObjectURL(url); };
+        }
         return;
       } catch (err) {
         console.error('ElevenLabs failed:', err);
         setElevenLabsOk(false);
         elevenLabsOkRef.current = false;
+        // FIX: was disabled for the rest of the session on any failure (including a transient 429
+        // or network blip). Retry after 60 s.
+        setTimeout(() => {
+          setElevenLabsOk(true);
+          elevenLabsOkRef.current = true;
+        }, 60000);
       }
     }
 
@@ -279,12 +294,17 @@ export default function JarvisPage() {
     if (!action) return;
 
     if (action.type === 'open_url') {
+      // FIX: client-side scheme check (blocks javascript:, file:, etc.)
+      if (!isHttpUrl(action.url)) {
+        setLogLine('Blocked non-http(s) URL');
+        return;
+      }
       if (agentConnected) {
         fetch(`${AGENT}/open-url`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ url: action.url }),
-        }).catch(() => {});
+        }).catch(() => { });
         setLogLine(`Opening ${action.site_name || action.url}`);
         return;
       }
@@ -368,7 +388,7 @@ export default function JarvisPage() {
 
   useEffect(() => { requestNotificationPermission(); }, [requestNotificationPermission]);
 
-  // ── 3. handleSend — passes location + local time ──────────────────────────
+  // ── 3. handleSend — passes location + local time + saved facts ─────────────
   const handleSend = useCallback(async (text) => {
     if (!text?.trim()) return;
     if (statusRef.current === 'thinking' || statusRef.current === 'speaking') return;
@@ -382,7 +402,8 @@ export default function JarvisPage() {
     setLogLine(`Processing: "${text.trim().slice(0, 40)}..."`);
 
     let fullText = '';
-    let receivedAction = null;
+    // FIX: was a single `receivedAction`; parallel tool calls dropped all but the first
+    let receivedActions = [];
 
     try {
       const res = await fetch('/api/chat', {
@@ -393,6 +414,8 @@ export default function JarvisPage() {
           userLocation: userLocationRef.current,
           localTime: new Date().toLocaleTimeString(),
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          // FIX: saved facts now actually reach the model
+          facts: getRelevantFactsPrompt(text.trim()),
         }),
       });
 
@@ -422,17 +445,30 @@ export default function JarvisPage() {
             fullText += msg.text;
             setStreamingText(fullText);
           } else if (msg.type === 'action') {
-            receivedAction = msg.action;
+            // FIX: accept the new `actions` array, fall back to the legacy single `action`
+            receivedActions = msg.actions ?? (msg.action ? [msg.action] : []);
           } else if (msg.type === 'error') {
             throw new Error(msg.message);
           }
         }
       }
 
+      // FIX: an empty reply would make /api/speak return 400 and trip the ElevenLabs fallback
+      if (!fullText.trim()) fullText = 'Done, sir.';
+
       setMessages([...history, { role: 'assistant', content: fullText }]);
       setStreamingText('');
       setLogLine('Relaying response...');
-      await Promise.all([executeAction(receivedAction), speak(fullText)]);
+      await Promise.all([
+        // FIX: a failed agent call no longer rejects the whole turn and flips the UI into the error state
+        ...receivedActions.map((a) =>
+          executeAction(a).catch((err) => {
+            console.error('Action failed:', a?.type, err);
+            setLogLine(`Action failed: ${a?.type}`);
+          })
+        ),
+        speak(fullText),
+      ]);
 
     } catch (e) {
       console.error('handleSend error:', e);
@@ -509,7 +545,7 @@ System initialization complete. All core modules are online and operating within
       // If user speaks while JARVIS is speaking, interrupt TTS immediately
       if (statusRef.current === 'speaking' && raw.trim().length > 1) {
         if (audioRef.current) {
-          try { audioRef.current.pause(); audioRef.current.currentTime = 0; } catch {}
+          try { audioRef.current.pause(); audioRef.current.currentTime = 0; } catch { }
         }
         if (typeof window !== 'undefined' && window.speechSynthesis) {
           window.speechSynthesis.cancel();
@@ -658,12 +694,7 @@ System initialization complete. All core modules are online and operating within
 
   const resetAllPositions = () => {
     playClick();
-    const ids = [
-      'neural-sync', 'bio-metrics', 'audio-viz', 'system-log', 'active-timers',
-      'system-topology', 'satellite-link', 'atmospheric-data', 'security-status', 'system-terminal',
-      'calculator-panel', 'timer-panel', 'notebook-panel',
-    ];
-    ids.forEach((id) => localStorage.removeItem(`jarvis-pos-${id}`));
+    PANEL_IDS.forEach((id) => localStorage.removeItem(`jarvis-pos-${id}`));
     window.location.reload();
   };
 
