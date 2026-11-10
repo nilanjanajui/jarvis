@@ -26,23 +26,21 @@ import {
   playBootSound as playBootSoundLib,
   startAmbientHum,
 } from '@/lib/hudSounds';
-import { playSpatialClick } from '@/lib/spatialAudio';
+// FEAT: removed unused `playSpatialClick` import (ESLint no-unused-vars)
 import { useSpatialMouse } from '@/lib/useSpatialMouse';
 import { useWindowPosition } from '@/lib/useWindowPosition';
-// FIX: getRelevantFactsPrompt was never imported, so saved facts never reached the model
 import { saveFact, getRelevantFactsPrompt } from '@/lib/memory';
 import Draggable from '@/components/Draggable';
 
 const AGENT = 'http://localhost:5001';
 
-// FIX: single source of truth for panel ids (was duplicated three times, one copy unused)
 const PANEL_IDS = [
   'neural-sync', 'bio-metrics', 'audio-viz', 'system-log', 'active-timers',
   'system-topology', 'satellite-link', 'atmospheric-data', 'security-status', 'system-terminal',
   'calculator-panel', 'timer-panel', 'notebook-panel',
 ];
 
-// FIX: defence in depth — the server already validates, but never hand a non-http(s) URL to window.open
+// Defence in depth — never hand a non-http(s) URL to window.open
 const isHttpUrl = (u) => {
   try { return ['http:', 'https:'].includes(new URL(u).protocol); } catch { return false; }
 };
@@ -64,6 +62,7 @@ export default function JarvisPage() {
     metrics: agentMetrics,
     pingMs: agentPingMs,
     killProcess,
+    isDemo, // FEAT: true on non-localhost hosts (e.g. Vercel) where no local agent can exist
   } = useLocalAgentWs();
 
   const [alwaysOn, setAlwaysOn] = useState(false);
@@ -74,6 +73,7 @@ export default function JarvisPage() {
   const [alwaysOnDefault, setAlwaysOnDefault] = useState(false);
   const [voiceId, setVoiceId] = useState(DEFAULT_VOICE_ID);
   const [showProcessMonitor, setShowProcessMonitor] = useState(false);
+  const [typed, setTyped] = useState(''); // FEAT: text command bar input
 
   // Layout version — bump this string whenever the Draggable system changes
   // to auto-clear any stale off-screen saved positions.
@@ -212,12 +212,11 @@ export default function JarvisPage() {
         const res = await fetch('/api/speak', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          // FIX: /api/speak now rejects text over 3000 chars
+          // /api/speak rejects text over 3000 chars
           body: JSON.stringify({ text: text.slice(0, 3000), voiceId: voiceIdRef.current }),
         });
         if (!res.ok) {
           const errBody = await res.json().catch(() => ({}));
-          // FIX: server now returns { error, status } instead of { detail }
           throw new Error(`ElevenLabs ${res.status}: ${errBody.error || errBody.status || 'unknown'}`);
         }
         const blob = await res.blob();
@@ -230,9 +229,8 @@ export default function JarvisPage() {
         audioRef.current.src = url;
         audioRef.current.onended = () => { resumeListening(); URL.revokeObjectURL(url); };
         await audioRef.current.play();
-        // FIX: set after play() resolves so a decode failure falls through to the browser-TTS
-        // fallback below instead of double-speaking; without this, a mid-playback error left
-        // the UI stuck in 'speaking'
+        // Set after play() resolves so a decode failure falls through to the browser-TTS
+        // fallback below instead of double-speaking
         if (audioRef.current) {
           audioRef.current.onerror = () => { resumeListening(); URL.revokeObjectURL(url); };
         }
@@ -241,8 +239,7 @@ export default function JarvisPage() {
         console.error('ElevenLabs failed:', err);
         setElevenLabsOk(false);
         elevenLabsOkRef.current = false;
-        // FIX: was disabled for the rest of the session on any failure (including a transient 429
-        // or network blip). Retry after 60 s.
+        // Retry ElevenLabs after 60 s instead of disabling it for the whole session
         setTimeout(() => {
           setElevenLabsOk(true);
           elevenLabsOkRef.current = true;
@@ -293,8 +290,14 @@ export default function JarvisPage() {
   const executeAction = useCallback(async (action) => {
     if (!action) return;
 
+    // FEAT: desktop-agent actions are simulated in demo mode (no local agent on a hosted deploy)
+    if (isDemo && ['open_app', 'volume', 'media'].includes(action.type)) {
+      setLogLine(`Demo mode: "${action.type}" is simulated`);
+      return;
+    }
+
     if (action.type === 'open_url') {
-      // FIX: client-side scheme check (blocks javascript:, file:, etc.)
+      // Client-side scheme check (blocks javascript:, file:, etc.)
       if (!isHttpUrl(action.url)) {
         setLogLine('Blocked non-http(s) URL');
         return;
@@ -378,7 +381,7 @@ export default function JarvisPage() {
       }, action.seconds * 1000);
       return;
     }
-  }, [agentConnected, speak, startTimer]);
+  }, [agentConnected, isDemo, speak, startTimer]); // FEAT: isDemo added to deps
 
   const requestNotificationPermission = useCallback(() => {
     if ('Notification' in window && Notification.permission === 'default') {
@@ -402,7 +405,7 @@ export default function JarvisPage() {
     setLogLine(`Processing: "${text.trim().slice(0, 40)}..."`);
 
     let fullText = '';
-    // FIX: was a single `receivedAction`; parallel tool calls dropped all but the first
+    // Parallel tool calls can return several actions in one turn
     let receivedActions = [];
 
     try {
@@ -414,7 +417,7 @@ export default function JarvisPage() {
           userLocation: userLocationRef.current,
           localTime: new Date().toLocaleTimeString(),
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-          // FIX: saved facts now actually reach the model
+          // Saved facts reach the model as labelled data
           facts: getRelevantFactsPrompt(text.trim()),
         }),
       });
@@ -445,7 +448,7 @@ export default function JarvisPage() {
             fullText += msg.text;
             setStreamingText(fullText);
           } else if (msg.type === 'action') {
-            // FIX: accept the new `actions` array, fall back to the legacy single `action`
+            // Accept the `actions` array, fall back to the legacy single `action`
             receivedActions = msg.actions ?? (msg.action ? [msg.action] : []);
           } else if (msg.type === 'error') {
             throw new Error(msg.message);
@@ -453,14 +456,14 @@ export default function JarvisPage() {
         }
       }
 
-      // FIX: an empty reply would make /api/speak return 400 and trip the ElevenLabs fallback
+      // An empty reply would make /api/speak return 400 and trip the ElevenLabs fallback
       if (!fullText.trim()) fullText = 'Done, sir.';
 
       setMessages([...history, { role: 'assistant', content: fullText }]);
       setStreamingText('');
       setLogLine('Relaying response...');
       await Promise.all([
-        // FIX: a failed agent call no longer rejects the whole turn and flips the UI into the error state
+        // A failed agent call no longer rejects the whole turn or flips the UI into the error state
         ...receivedActions.map((a) =>
           executeAction(a).catch((err) => {
             console.error('Action failed:', a?.type, err);
@@ -487,6 +490,15 @@ export default function JarvisPage() {
   }, [executeAction, speak, safeStart]);
 
   useEffect(() => { handleSendRef.current = handleSend; }, [handleSend]);
+
+  // FEAT: text command bar submit — reuses handleSend, works without a microphone
+  const submitTyped = (e) => {
+    e.preventDefault();
+    const t = typed.trim();
+    if (!t) return;
+    setTyped('');
+    handleSend(t);
+  };
 
   // ── 4. Wake up sequence ────────────────────────────────────────────────────
   const wakeUp = useCallback(() => {
@@ -782,6 +794,15 @@ System initialization complete. All core modules are online and operating within
 
         {/* Status bar */}
         <div className="jarvis-status-bar" style={{ flexShrink: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '14px', padding: '6px 16px', borderBottom: '1px solid rgba(0,212,255,0.12)', background: 'rgba(0,5,12,0.92)', flexWrap: 'wrap' }}>
+          {/* FEAT: demo badge */}
+          {isDemo && (
+            <>
+              <span style={{ fontFamily: 'Share Tech Mono', fontSize: '11px', color: '#f59e0b', letterSpacing: '0.1em' }}>
+                ◈ DEMO · SIMULATED HOST DATA
+              </span>
+              <span style={{ color: 'rgba(0,212,255,0.2)' }}>|</span>
+            </>
+          )}
           <span style={{ fontFamily: 'Share Tech Mono', fontSize: '11px', color: isWsConnected ? '#00ff88' : agentConnected ? '#22c55e' : 'rgba(0,212,255,0.3)', letterSpacing: '0.1em' }}>
             {isWsConnected ? `● WS IPC STREAM (${agentPingMs}ms)` : agentConnected ? '● AGENT HTTP ONLINE' : '○ AGENT OFFLINE'}
           </span>
@@ -899,7 +920,8 @@ System initialization complete. All core modules are online and operating within
         <div className="jarvis-main-grid" style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
           <div className="jarvis-panel-left" style={{ overflowY: 'auto', position: 'relative', zIndex: 10 }}>
             <Draggable id="neural-sync"><NeuralSync /></Draggable>
-            <Draggable id="bio-metrics"><BioMetrics /></Draggable>
+            {/* FEAT: demoStats feeds simulated vitals when hosted */}
+            <Draggable id="bio-metrics"><BioMetrics demoStats={isDemo ? agentMetrics : null} /></Draggable>
             <Draggable id="audio-viz"><AudioVisualizer /></Draggable>
             <Draggable id="system-log"><SystemLog extraLine={logLine} /></Draggable>
             {activeTimers.length > 0 && (
@@ -974,6 +996,29 @@ System initialization complete. All core modules are online and operating within
           </button>
         </div>
       )}
+
+      {/* FEAT: text command bar — outside the clickable HUD div so clicks don't trigger the mic */}
+      <form
+        onSubmit={submitTyped}
+        style={{ position: 'fixed', bottom: '64px', left: '50%', transform: 'translateX(-50%)', zIndex: 90, display: 'flex', gap: '8px', width: 'min(560px, 90vw)' }}
+      >
+        <input
+          value={typed}
+          onChange={(e) => setTyped(e.target.value)}
+          maxLength={500}
+          aria-label="Type a command"
+          placeholder="Type a command, sir…"
+          disabled={status === 'thinking' || status === 'speaking'}
+          style={{ flex: 1, background: 'rgba(0,18,36,0.9)', border: '1px solid rgba(0,212,255,0.35)', color: '#00d4ff', fontFamily: 'Share Tech Mono', fontSize: '13px', padding: '8px 12px', outline: 'none' }}
+        />
+        <button
+          type="submit"
+          style={{ fontFamily: 'Orbitron', fontSize: '11px', letterSpacing: '0.15em', background: 'rgba(0,212,255,0.1)', border: '1px solid #00d4ff', color: '#00d4ff', padding: '0 16px', cursor: 'pointer' }}
+        >
+          SEND
+        </button>
+      </form>
+
       <audio ref={audioRef} />
 
       {activeNav === 'ABOUT' && (
@@ -997,11 +1042,7 @@ System initialization complete. All core modules are online and operating within
   );
 }
 
-// Moved outside JarvisPage to module scope. Previously declared after the
-// return statement inside JarvisPage — that caused a NEW function reference
-// on every JarvisPage render (which happens constantly during streaming),
-// which made React unmount/remount TimerRow each time, resetting its
-// countdown and restarting its interval. Declaring it here fixes that.
+// Module-scope so React doesn't remount it (and reset its interval) on every JarvisPage render.
 function TimerRow({ label, endsAt }) {
   const [remaining, setRemaining] = useState(() => Math.max(0, endsAt - Date.now()));
 
