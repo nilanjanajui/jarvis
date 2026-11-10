@@ -170,11 +170,11 @@ export default function CenterHUD({ status, transcript, streamingText, bootProgr
                 <line x1="10" y1="250" x2="35" y2="250" stroke={ringColor} strokeWidth="2" opacity="0.65" />
                 <line x1="465" y1="250" x2="490" y2="250" stroke={ringColor} strokeWidth="2" opacity="0.65" />
 
-                {/* Readout labels */}
-                <text x="250" y="26" textAnchor="middle" fill={ringColor} opacity="0.5" fontSize="9" fontFamily="Share Tech Mono">N · 000°</text>
-                <text x="480" y="254" textAnchor="middle" fill="#ffb340" opacity="0.4" fontSize="9" fontFamily="Share Tech Mono">E · 090°</text>
-                <text x="250" y="488" textAnchor="middle" fill={ringColor} opacity="0.5" fontSize="9" fontFamily="Share Tech Mono">S · 180°</text>
-                <text x="20" y="254" textAnchor="middle" fill="#ffb340" opacity="0.4" fontSize="9" fontFamily="Share Tech Mono">W · 270°</text>
+                {/* Readout labels (brighter and slightly larger for low-brightness screens) */}
+                <text x="250" y="26" textAnchor="middle" fill={ringColor} opacity="0.8" fontSize="10" fontFamily="Share Tech Mono">N · 000°</text>
+                <text x="480" y="254" textAnchor="middle" fill="#ffb340" opacity="0.7" fontSize="10" fontFamily="Share Tech Mono">E · 090°</text>
+                <text x="250" y="488" textAnchor="middle" fill={ringColor} opacity="0.8" fontSize="10" fontFamily="Share Tech Mono">S · 180°</text>
+                <text x="20" y="254" textAnchor="middle" fill="#ffb340" opacity="0.7" fontSize="10" fontFamily="Share Tech Mono">W · 270°</text>
 
                 {/* Pulsing glow behind sphere */}
                 <circle cx="250" cy="250" r="95" fill="url(#glowG)"
@@ -202,8 +202,8 @@ export default function CenterHUD({ status, transcript, streamingText, bootProgr
                         style={{ transformOrigin: '250px 250px', animation: 'spin 1.5s linear infinite reverse' }} />
                 )}
 
-                {/* ── Left flanking diagnostic panel (angled trapezoid, like reference) ── */}
-                <g opacity={isBooting ? 1 : 0.55} style={{ transition: 'opacity 0.6s' }}>
+                {/* ── Left flanking diagnostic panel (decorative) ── */}
+                <g opacity={isBooting ? 1 : 0.8} style={{ transition: 'opacity 0.6s' }}>
                     <path d="M 70 200 L 150 210 L 150 290 L 70 300 Z" fill="rgba(0,18,36,0.5)" stroke={ringColor} strokeWidth="0.6" opacity="0.7" />
                     <text x="80" y="220" fill={ringColor} fontSize="7" fontFamily="Share Tech Mono" opacity="0.7">SYS.DIAG</text>
                     <text x="80" y="235" fill={ringColor} fontSize="6" fontFamily="Share Tech Mono" opacity="0.45">CORE.7A</text>
@@ -213,8 +213,8 @@ export default function CenterHUD({ status, transcript, streamingText, bootProgr
                     <text x="80" y="280" fill="#ffb340" fontSize="6" fontFamily="Share Tech Mono" opacity="0.5">0x4F2A.9B</text>
                 </g>
 
-                {/* ── Right flanking diagnostic panel ── */}
-                <g opacity={isBooting ? 1 : 0.55} style={{ transition: 'opacity 0.6s' }}>
+                {/* ── Right flanking diagnostic panel (decorative) ── */}
+                <g opacity={isBooting ? 1 : 0.8} style={{ transition: 'opacity 0.6s' }}>
                     <path d="M 430 200 L 350 210 L 350 290 L 430 300 Z" fill="rgba(0,18,36,0.5)" stroke={ringColor} strokeWidth="0.6" opacity="0.7" />
                     <text x="420" y="220" textAnchor="end" fill={ringColor} fontSize="7" fontFamily="Share Tech Mono" opacity="0.7">COMMS</text>
                     <text x="420" y="235" textAnchor="end" fill={ringColor} fontSize="6" fontFamily="Share Tech Mono" opacity="0.45">LINK.ACTIVE</text>
@@ -224,17 +224,24 @@ export default function CenterHUD({ status, transcript, streamingText, bootProgr
                 </g>
             </svg>
 
-            {/* Greeting + status */}
-            <div style={{ position: 'absolute', bottom: '10%', textAlign: 'center', pointerEvents: 'none' }}>
+            {/* Greeting + status — readable size, capped to 3 lines so long replies can't swamp the HUD */}
+            <div style={{ position: 'absolute', bottom: '4%', textAlign: 'center', pointerEvents: 'none' }}>
                 <div className="text-glow" style={{ fontFamily: 'Orbitron', fontSize: '15px', fontWeight: '700', letterSpacing: '0.25em', color: '#00d4ff', marginBottom: '8px' }}>
                     {isBooting ? 'INITIALIZING' : `${greeting}, SIR`}
                 </div>
                 <div className="jarvis-live-data" style={{
-                    fontFamily: 'Share Tech Mono', fontSize: '11px',
-                    color: status === 'speaking' ? ringColor : 'rgba(0,212,255,0.55)',
-                    letterSpacing: '0.1em',
+                    fontFamily: 'Share Tech Mono', fontSize: '14px',
+                    color: status === 'speaking' ? ringColor : 'rgba(170,240,255,0.92)',
+                    letterSpacing: '0.06em',
                     fontStyle: transcript ? 'normal' : 'italic',
                     transition: 'color 0.3s',
+                    maxWidth: 'min(640px, 80vw)',
+                    margin: '0 auto',
+                    display: '-webkit-box',
+                    WebkitBoxOrient: 'vertical',
+                    WebkitLineClamp: 3,
+                    overflow: 'hidden',
+                    textShadow: '0 0 8px rgba(0,0,0,0.9)',
                 }}>
                     {transcript || streamingText || label}
                 </div>

@@ -716,3 +716,37 @@ body {
     transform: scale(1.03);
   }
 }
+
+/* ── Readability mode (BRIGHT toggle) ── */
+.jarvis-bright .hud-card {
+  background: rgba(0, 20, 40, 0.78) !important;
+  border-color: rgba(0, 212, 255, 0.35) !important;
+}
+
+.jarvis-bright .hud-label {
+  color: #d4f9ff;
+}
+
+.jarvis-bright .hud-sublabel {
+  font-size: 10px;
+  color: rgba(170, 240, 255, 0.8);
+}
+
+.jarvis-bright nav {
+  background: rgba(2, 8, 16, 0.99) !important;
+  border-bottom-color: rgba(0, 212, 255, 0.4) !important;
+}
+
+.jarvis-bright .jarvis-status-bar {
+  background: rgba(0, 12, 24, 0.98) !important;
+  border-bottom: 1px solid rgba(0, 212, 255, 0.35) !important;
+}
+
+.jarvis-bright .jarvis-status-bar span,
+.jarvis-bright .jarvis-status-bar button {
+  font-size: 12px !important;
+}
+
+.jarvis-bright input::placeholder {
+  color: rgba(170, 240, 255, 0.6);
+}

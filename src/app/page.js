@@ -26,7 +26,6 @@ import {
   playBootSound as playBootSoundLib,
   startAmbientHum,
 } from '@/lib/hudSounds';
-// FEAT: removed unused `playSpatialClick` import (ESLint no-unused-vars)
 import { useSpatialMouse } from '@/lib/useSpatialMouse';
 import { useWindowPosition } from '@/lib/useWindowPosition';
 import { saveFact, getRelevantFactsPrompt } from '@/lib/memory';
@@ -39,6 +38,9 @@ const PANEL_IDS = [
   'system-topology', 'satellite-link', 'atmospheric-data', 'security-status', 'system-terminal',
   'calculator-panel', 'timer-panel', 'notebook-panel',
 ];
+
+// Theme = hue rotation applied to the whole HUD (cyan is the base palette)
+const THEMES = { cyan: 0, amber: -150, green: -70, violet: 80 };
 
 // Defence in depth — never hand a non-http(s) URL to window.open
 const isHttpUrl = (u) => {
@@ -62,7 +64,7 @@ export default function JarvisPage() {
     metrics: agentMetrics,
     pingMs: agentPingMs,
     killProcess,
-    isDemo, // FEAT: true on non-localhost hosts (e.g. Vercel) where no local agent can exist
+    isDemo,
   } = useLocalAgentWs();
 
   const [alwaysOn, setAlwaysOn] = useState(false);
@@ -73,7 +75,9 @@ export default function JarvisPage() {
   const [alwaysOnDefault, setAlwaysOnDefault] = useState(false);
   const [voiceId, setVoiceId] = useState(DEFAULT_VOICE_ID);
   const [showProcessMonitor, setShowProcessMonitor] = useState(false);
-  const [typed, setTyped] = useState(''); // FEAT: text command bar input
+  const [typed, setTyped] = useState('');
+  const [theme, setTheme] = useState('cyan');
+  const [bright, setBright] = useState(true);
 
   // Layout version — bump this string whenever the Draggable system changes
   // to auto-clear any stale off-screen saved positions.
@@ -106,6 +110,12 @@ export default function JarvisPage() {
       try {
         const savedVoice = localStorage.getItem('jarvis-voice-id');
         if (savedVoice) setVoiceId(savedVoice);
+      } catch { }
+      try {
+        const th = localStorage.getItem('jarvis-theme');
+        if (th && th in THEMES) setTheme(th);
+        const br = localStorage.getItem('jarvis-bright');
+        if (br !== null) setBright(br === 'true');
       } catch { }
     }, 0);
     return () => clearTimeout(t);
@@ -290,7 +300,7 @@ export default function JarvisPage() {
   const executeAction = useCallback(async (action) => {
     if (!action) return;
 
-    // FEAT: desktop-agent actions are simulated in demo mode (no local agent on a hosted deploy)
+    // Desktop-agent actions are simulated in demo mode (no local agent on a hosted deploy)
     if (isDemo && ['open_app', 'volume', 'media'].includes(action.type)) {
       setLogLine(`Demo mode: "${action.type}" is simulated`);
       return;
@@ -381,7 +391,7 @@ export default function JarvisPage() {
       }, action.seconds * 1000);
       return;
     }
-  }, [agentConnected, isDemo, speak, startTimer]); // FEAT: isDemo added to deps
+  }, [agentConnected, isDemo, speak, startTimer]);
 
   const requestNotificationPermission = useCallback(() => {
     if ('Notification' in window && Notification.permission === 'default') {
@@ -491,7 +501,7 @@ export default function JarvisPage() {
 
   useEffect(() => { handleSendRef.current = handleSend; }, [handleSend]);
 
-  // FEAT: text command bar submit — reuses handleSend, works without a microphone
+  // Text command bar submit — reuses handleSend, works without a microphone
   const submitTyped = (e) => {
     e.preventDefault();
     const t = typed.trim();
@@ -710,6 +720,21 @@ System initialization complete. All core modules are online and operating within
     window.location.reload();
   };
 
+  const cycleTheme = () => {
+    playBlip();
+    const keys = Object.keys(THEMES);
+    const next = keys[(keys.indexOf(theme) + 1) % keys.length];
+    setTheme(next);
+    try { localStorage.setItem('jarvis-theme', next); } catch { }
+  };
+
+  const toggleBright = () => {
+    playBlip();
+    const next = !bright;
+    setBright(next);
+    try { localStorage.setItem('jarvis-bright', String(next)); } catch { }
+  };
+
   const statusColor = {
     idle: '#00d4ff',
     listening: '#22c55e',
@@ -721,7 +746,14 @@ System initialization complete. All core modules are online and operating within
   }[status] || '#00d4ff';
 
   return (
-    <div className="jarvis-app-root" style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#060b14', overflow: 'hidden', position: 'relative' }}>
+    <div
+      className={`jarvis-app-root${bright ? ' jarvis-bright' : ''}`}
+      style={{
+        height: '100vh', display: 'flex', flexDirection: 'column', background: '#060b14',
+        overflow: 'hidden', position: 'relative',
+        filter: THEMES[theme] ? `hue-rotate(${THEMES[theme]}deg)` : 'none',
+      }}
+    >
 
       {/* Animated Background — deeper parallax layer (moves more than HUD for depth) */}
       <div style={{
@@ -747,7 +779,8 @@ System initialization complete. All core modules are online and operating within
         {/* Full-screen diagonal scan sweep */}
         <div className="jarvis-full-scan" />
 
-        <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '900px', height: '900px', borderRadius: '50%', background: `radial-gradient(circle, ${statusColor}07 0%, transparent 65%)`, animation: 'pulse-glow 3s ease-in-out infinite', transition: 'background 1s' }} />
+        {/* Status-reactive glow (was ~3% opacity, now clearly visible) */}
+        <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '900px', height: '900px', borderRadius: '50%', background: `radial-gradient(circle, ${statusColor}1f 0%, transparent 65%)`, animation: 'pulse-glow 3s ease-in-out infinite', transition: 'background 1s' }} />
         {particles.map((p, i) => (
           <div key={i} className="jarvis-depth-blur" style={{ position: 'absolute', left: `${p.x}%`, top: `${p.y}%`, width: `${p.size}px`, height: `${p.size}px`, borderRadius: '50%', background: '#00d4ff', animation: `float-particle ${p.duration}s ease-in-out ${p.delay}s infinite, drift-x ${p.driftDur}s ease-in-out ${p.delay}s infinite` }} />
         ))}
@@ -794,7 +827,6 @@ System initialization complete. All core modules are online and operating within
 
         {/* Status bar */}
         <div className="jarvis-status-bar" style={{ flexShrink: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '14px', padding: '6px 16px', borderBottom: '1px solid rgba(0,212,255,0.12)', background: 'rgba(0,5,12,0.92)', flexWrap: 'wrap' }}>
-          {/* FEAT: demo badge */}
           {isDemo && (
             <>
               <span style={{ fontFamily: 'Share Tech Mono', fontSize: '11px', color: '#f59e0b', letterSpacing: '0.1em' }}>
@@ -803,11 +835,11 @@ System initialization complete. All core modules are online and operating within
               <span style={{ color: 'rgba(0,212,255,0.2)' }}>|</span>
             </>
           )}
-          <span style={{ fontFamily: 'Share Tech Mono', fontSize: '11px', color: isWsConnected ? '#00ff88' : agentConnected ? '#22c55e' : 'rgba(0,212,255,0.3)', letterSpacing: '0.1em' }}>
+          <span style={{ fontFamily: 'Share Tech Mono', fontSize: '11px', color: isWsConnected ? '#00ff88' : agentConnected ? '#22c55e' : 'rgba(170,240,255,0.85)', letterSpacing: '0.1em' }}>
             {isWsConnected ? `● WS IPC STREAM (${agentPingMs}ms)` : agentConnected ? '● AGENT HTTP ONLINE' : '○ AGENT OFFLINE'}
           </span>
           <span style={{ color: 'rgba(0,212,255,0.2)' }}>|</span>
-          <span style={{ fontFamily: 'Share Tech Mono', fontSize: '11px', color: userLocation ? '#22c55e' : 'rgba(0,212,255,0.3)', letterSpacing: '0.1em' }}>
+          <span style={{ fontFamily: 'Share Tech Mono', fontSize: '11px', color: userLocation ? '#22c55e' : 'rgba(170,240,255,0.85)', letterSpacing: '0.1em' }}>
             {userLocation ? '● LOCATION LOCKED' : '○ LOCATION UNKNOWN'}
           </span>
           <span style={{ color: 'rgba(0,212,255,0.2)' }}>|</span>
@@ -815,20 +847,20 @@ System initialization complete. All core modules are online and operating within
             {elevenLabsOk ? '● ELEVENLABS VOICE' : '⚠ BROWSER VOICE'}
           </span>
           <span style={{ color: 'rgba(0,212,255,0.2)' }}>|</span>
-          <span style={{ fontFamily: 'Share Tech Mono', fontSize: '11px', color: '#00d4ff', letterSpacing: '0.1em', opacity: 0.6 }}>
+          <span style={{ fontFamily: 'Share Tech Mono', fontSize: '11px', color: '#a8f0ff', letterSpacing: '0.1em' }}>
             ◈ SPATIAL 3D · {windowPos.quadrant}{windowPos.isMultiMonitor ? ` · MON${windowPos.monitor}` : ''}
           </span>
           <span style={{ color: 'rgba(0,212,255,0.2)' }}>|</span>
           <button
             onClick={toggleAlwaysOn}
-            style={{ fontFamily: 'Share Tech Mono', fontSize: '11px', letterSpacing: '0.1em', background: 'none', border: `1px solid ${alwaysOn ? '#22c55e' : 'rgba(0,212,255,0.25)'}`, color: alwaysOn ? '#22c55e' : 'rgba(0,212,255,0.5)', padding: '2px 10px', cursor: 'pointer', borderRadius: '2px', transition: 'all 0.3s' }}
+            style={{ fontFamily: 'Share Tech Mono', fontSize: '11px', letterSpacing: '0.1em', background: 'none', border: `1px solid ${alwaysOn ? '#22c55e' : 'rgba(0,212,255,0.5)'}`, color: alwaysOn ? '#22c55e' : 'rgba(170,240,255,0.95)', padding: '2px 10px', cursor: 'pointer', borderRadius: '2px', transition: 'all 0.3s' }}
           >
             {alwaysOn ? '● ALWAYS LISTENING' : '○ CLICK TO TALK'}
           </button>
           {alwaysOn && (
             <>
               <span style={{ color: 'rgba(0,212,255,0.2)' }}>|</span>
-              <span style={{ fontFamily: 'Share Tech Mono', fontSize: '11px', color: 'rgba(0,212,255,0.4)', letterSpacing: '0.08em' }}>
+              <span style={{ fontFamily: 'Share Tech Mono', fontSize: '11px', color: 'rgba(170,240,255,0.8)', letterSpacing: '0.08em' }}>
                 &quot;wake up jarvis&quot; to greet · &quot;jarvis sleep&quot; to pause
               </span>
             </>
@@ -854,11 +886,23 @@ System initialization complete. All core modules are online and operating within
             onClick={resetAllPositions}
             style={{
               fontFamily: 'Share Tech Mono', fontSize: '11px', letterSpacing: '0.1em',
-              background: 'none', border: '1px solid rgba(0,212,255,0.25)',
-              color: 'rgba(0,212,255,0.5)', padding: '2px 10px', cursor: 'pointer', borderRadius: '2px',
+              background: 'none', border: '1px solid rgba(0,212,255,0.5)',
+              color: 'rgba(170,240,255,0.95)', padding: '2px 10px', cursor: 'pointer', borderRadius: '2px',
             }}
           >
             RESET LAYOUT
+          </button>
+          <button
+            onClick={cycleTheme}
+            style={{ fontFamily: 'Share Tech Mono', fontSize: '11px', letterSpacing: '0.1em', background: 'none', border: '1px solid rgba(0,212,255,0.5)', color: '#a8f0ff', padding: '2px 10px', cursor: 'pointer', borderRadius: '2px' }}
+          >
+            THEME: {theme.toUpperCase()}
+          </button>
+          <button
+            onClick={toggleBright}
+            style={{ fontFamily: 'Share Tech Mono', fontSize: '11px', letterSpacing: '0.1em', background: 'none', border: '1px solid rgba(0,212,255,0.5)', color: '#a8f0ff', padding: '2px 10px', cursor: 'pointer', borderRadius: '2px' }}
+          >
+            {bright ? '◉ BRIGHT' : '○ DIM'}
           </button>
           <span style={{ color: 'rgba(0,212,255,0.2)' }}>|</span>
           {/* Tool panel toggles — CALC / TIMER / NOTES / PROCESSES */}
@@ -867,10 +911,10 @@ System initialization complete. All core modules are online and operating within
             style={{
               fontFamily: 'Orbitron', fontSize: '10px', letterSpacing: '0.15em',
               background: showCalculator ? 'rgba(0,212,255,0.2)' : 'none',
-              border: `1px solid ${showCalculator ? '#00d4ff' : 'rgba(0,212,255,0.3)'}`,
-              color: showCalculator ? '#00d4ff' : 'rgba(0,212,255,0.7)',
+              border: `1px solid ${showCalculator ? '#00d4ff' : 'rgba(0,212,255,0.55)'}`,
+              color: showCalculator ? '#00d4ff' : '#a8f0ff',
               padding: '2px 10px', cursor: 'pointer', borderRadius: '2px', transition: 'all 0.2s',
-              boxShadow: showCalculator ? '0 0 10px rgba(0,212,255,0.3)' : 'none',
+              boxShadow: showCalculator ? '0 0 10px rgba(0,212,255,0.55)' : 'none',
             }}
           >
             CALC
@@ -880,10 +924,10 @@ System initialization complete. All core modules are online and operating within
             style={{
               fontFamily: 'Orbitron', fontSize: '10px', letterSpacing: '0.15em',
               background: showTimerPanel ? 'rgba(0,212,255,0.2)' : 'none',
-              border: `1px solid ${showTimerPanel ? '#00d4ff' : 'rgba(0,212,255,0.3)'}`,
-              color: showTimerPanel ? '#00d4ff' : 'rgba(0,212,255,0.7)',
+              border: `1px solid ${showTimerPanel ? '#00d4ff' : 'rgba(0,212,255,0.55)'}`,
+              color: showTimerPanel ? '#00d4ff' : '#a8f0ff',
               padding: '2px 10px', cursor: 'pointer', borderRadius: '2px', transition: 'all 0.2s',
-              boxShadow: showTimerPanel ? '0 0 10px rgba(0,212,255,0.3)' : 'none',
+              boxShadow: showTimerPanel ? '0 0 10px rgba(0,212,255,0.55)' : 'none',
             }}
           >
             TIMER
@@ -893,10 +937,10 @@ System initialization complete. All core modules are online and operating within
             style={{
               fontFamily: 'Orbitron', fontSize: '10px', letterSpacing: '0.15em',
               background: showNotebook ? 'rgba(0,212,255,0.2)' : 'none',
-              border: `1px solid ${showNotebook ? '#00d4ff' : 'rgba(0,212,255,0.3)'}`,
-              color: showNotebook ? '#00d4ff' : 'rgba(0,212,255,0.7)',
+              border: `1px solid ${showNotebook ? '#00d4ff' : 'rgba(0,212,255,0.55)'}`,
+              color: showNotebook ? '#00d4ff' : '#a8f0ff',
               padding: '2px 10px', cursor: 'pointer', borderRadius: '2px', transition: 'all 0.2s',
-              boxShadow: showNotebook ? '0 0 10px rgba(0,212,255,0.3)' : 'none',
+              boxShadow: showNotebook ? '0 0 10px rgba(0,212,255,0.55)' : 'none',
             }}
           >
             NOTES
@@ -906,10 +950,10 @@ System initialization complete. All core modules are online and operating within
             style={{
               fontFamily: 'Orbitron', fontSize: '10px', letterSpacing: '0.15em',
               background: showProcessMonitor ? 'rgba(0,212,255,0.2)' : 'none',
-              border: `1px solid ${showProcessMonitor ? '#00d4ff' : 'rgba(0,212,255,0.3)'}`,
-              color: showProcessMonitor ? '#00d4ff' : 'rgba(0,212,255,0.7)',
+              border: `1px solid ${showProcessMonitor ? '#00d4ff' : 'rgba(0,212,255,0.55)'}`,
+              color: showProcessMonitor ? '#00d4ff' : '#a8f0ff',
               padding: '2px 10px', cursor: 'pointer', borderRadius: '2px', transition: 'all 0.2s',
-              boxShadow: showProcessMonitor ? '0 0 10px rgba(0,212,255,0.3)' : 'none',
+              boxShadow: showProcessMonitor ? '0 0 10px rgba(0,212,255,0.55)' : 'none',
             }}
           >
             PROCESSES
@@ -920,7 +964,6 @@ System initialization complete. All core modules are online and operating within
         <div className="jarvis-main-grid" style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
           <div className="jarvis-panel-left" style={{ overflowY: 'auto', position: 'relative', zIndex: 10 }}>
             <Draggable id="neural-sync"><NeuralSync /></Draggable>
-            {/* FEAT: demoStats feeds simulated vitals when hosted */}
             <Draggable id="bio-metrics"><BioMetrics demoStats={isDemo ? agentMetrics : null} /></Draggable>
             <Draggable id="audio-viz"><AudioVisualizer /></Draggable>
             <Draggable id="system-log"><SystemLog extraLine={logLine} /></Draggable>
@@ -939,11 +982,12 @@ System initialization complete. All core modules are online and operating within
           <div className="jarvis-panel-center" style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
             <div
               onClick={handleMicClick}
-              style={{ flex: 1, cursor: !alwaysOn && status === 'idle' ? 'pointer' : 'default', position: 'relative' }}
+              style={{ flex: 1, minHeight: 0, cursor: !alwaysOn && status === 'idle' ? 'pointer' : 'default', position: 'relative' }}
             >
               <CenterHUD status={status} transcript={transcript} streamingText={streamingText} bootProgress={bootProgress} ttsAudioRef={audioRef} />
               {!alwaysOn && status === 'idle' && (
-                <div style={{ position: 'absolute', bottom: '6%', left: '50%', transform: 'translateX(-50%)', fontFamily: 'Orbitron', fontSize: '10px', letterSpacing: '0.2em', color: 'rgba(0,212,255,0.4)' }}>
+                /* moved to the top so it never collides with the greeting/reply text at the bottom */
+                <div style={{ position: 'absolute', top: '4%', left: '50%', transform: 'translateX(-50%)', fontFamily: 'Orbitron', fontSize: '11px', letterSpacing: '0.2em', color: 'rgba(170,240,255,0.75)' }}>
                   CLICK TO ACTIVATE
                 </div>
               )}
@@ -967,6 +1011,29 @@ System initialization complete. All core modules are online and operating within
                 />
               )}
             </div>
+
+            {/* Text command bar — its own row under the HUD, so it never overlaps the reply text.
+                Outside the clickable HUD div so typing/clicking here doesn't trigger the mic. */}
+            <form
+              onSubmit={submitTyped}
+              style={{ flexShrink: 0, display: 'flex', gap: '8px', width: 'min(640px, 92%)', margin: '0 auto', padding: '8px 0 18px' }}
+            >
+              <input
+                value={typed}
+                onChange={(e) => setTyped(e.target.value)}
+                maxLength={500}
+                aria-label="Type a command"
+                placeholder="Type a command, sir…"
+                disabled={status === 'thinking' || status === 'speaking'}
+                style={{ flex: 1, background: 'rgba(0,22,44,0.95)', border: '1px solid rgba(0,212,255,0.6)', color: '#e6fbff', fontFamily: 'Share Tech Mono', fontSize: '15px', padding: '10px 14px', outline: 'none' }}
+              />
+              <button
+                type="submit"
+                style={{ fontFamily: 'Orbitron', fontSize: '12px', letterSpacing: '0.15em', background: 'rgba(0,212,255,0.15)', border: '1px solid #00d4ff', color: '#e6fbff', padding: '0 18px', cursor: 'pointer' }}
+              >
+                SEND
+              </button>
+            </form>
           </div>
 
           <div className="jarvis-panel-right" style={{ padding: '10px', overflowY: 'auto', borderLeft: '1px solid rgba(0,212,255,0.07)', position: 'relative', zIndex: 10 }}>
@@ -981,7 +1048,7 @@ System initialization complete. All core modules are online and operating within
 
       {pendingUrl && (
         <div style={{ position: 'fixed', bottom: '28px', left: '50%', transform: 'translateX(-50%)', zIndex: 100, display: 'flex', alignItems: 'center', gap: '12px', background: 'rgba(0,18,36,0.97)', border: '1px solid rgba(0,212,255,0.4)', padding: '10px 20px', boxShadow: '0 0 30px rgba(0,212,255,0.15)' }}>
-          <span style={{ fontFamily: 'Share Tech Mono', fontSize: '11px', color: 'rgba(0,212,255,0.7)', letterSpacing: '0.08em' }}>
+          <span style={{ fontFamily: 'Share Tech Mono', fontSize: '11px', color: 'rgba(170,240,255,0.9)', letterSpacing: '0.08em' }}>
             Open {pendingUrl.name}?
           </span>
           <button
@@ -991,33 +1058,11 @@ System initialization complete. All core modules are online and operating within
           </button>
           <button
             onClick={() => { playClick(); setPendingUrl(null); }}
-            style={{ fontFamily: 'Orbitron', fontSize: '11px', letterSpacing: '0.15em', background: 'none', border: '1px solid rgba(0,212,255,0.2)', color: 'rgba(0,212,255,0.4)', padding: '4px 14px', cursor: 'pointer' }}>
+            style={{ fontFamily: 'Orbitron', fontSize: '11px', letterSpacing: '0.15em', background: 'none', border: '1px solid rgba(0,212,255,0.4)', color: 'rgba(170,240,255,0.8)', padding: '4px 14px', cursor: 'pointer' }}>
             DISMISS
           </button>
         </div>
       )}
-
-      {/* FEAT: text command bar — outside the clickable HUD div so clicks don't trigger the mic */}
-      <form
-        onSubmit={submitTyped}
-        style={{ position: 'fixed', bottom: '64px', left: '50%', transform: 'translateX(-50%)', zIndex: 90, display: 'flex', gap: '8px', width: 'min(560px, 90vw)' }}
-      >
-        <input
-          value={typed}
-          onChange={(e) => setTyped(e.target.value)}
-          maxLength={500}
-          aria-label="Type a command"
-          placeholder="Type a command, sir…"
-          disabled={status === 'thinking' || status === 'speaking'}
-          style={{ flex: 1, background: 'rgba(0,18,36,0.9)', border: '1px solid rgba(0,212,255,0.35)', color: '#00d4ff', fontFamily: 'Share Tech Mono', fontSize: '13px', padding: '8px 12px', outline: 'none' }}
-        />
-        <button
-          type="submit"
-          style={{ fontFamily: 'Orbitron', fontSize: '11px', letterSpacing: '0.15em', background: 'rgba(0,212,255,0.1)', border: '1px solid #00d4ff', color: '#00d4ff', padding: '0 16px', cursor: 'pointer' }}
-        >
-          SEND
-        </button>
-      </form>
 
       <audio ref={audioRef} />
 
@@ -1058,7 +1103,7 @@ function TimerRow({ label, endsAt }) {
 
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-      <span style={{ fontFamily: 'Share Tech Mono', fontSize: '10px', color: 'rgba(0,212,255,0.7)' }}>
+      <span style={{ fontFamily: 'Share Tech Mono', fontSize: '10px', color: '#a8f0ff' }}>
         {label}
       </span>
       <span style={{ fontFamily: 'Orbitron', fontSize: '11px', color: '#00d4ff', fontWeight: '700' }}>
