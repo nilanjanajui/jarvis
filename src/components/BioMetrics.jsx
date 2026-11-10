@@ -3,13 +3,16 @@ import { useState, useEffect } from 'react';
 
 const AGENT = 'http://localhost:5001';
 
-export default function BioMetrics() {
-    const [stats, setStats] = useState(null);
+export default function BioMetrics({ demoStats = null }) {
+    const [liveStats, setStats] = useState(null);
     const [activeWindow, setActiveWindow] = useState('');
     const [connected, setConnected] = useState(false);
+    const stats = demoStats || liveStats;
+    const isOnline = connected || Boolean(demoStats);
 
     useEffect(() => {
-        const isLocal = typeof window !== 'undefined' && window.location.hostname === 'localhost';
+        const isLocal = typeof window !== 'undefined' &&
+            ['localhost', '127.0.0.1'].includes(window.location.hostname);
 
         const fetchStats = () => {
             if (!isLocal) return;
@@ -28,7 +31,7 @@ export default function BioMetrics() {
                 .then((data) => {
                     if (data.title) setActiveWindow(data.title);
                 })
-                .catch(() => {});
+                .catch(() => { });
         };
 
         fetchStats();
@@ -60,9 +63,15 @@ export default function BioMetrics() {
                 </svg>
             </div>
 
-            {!connected && (
+            {!isOnline && (
                 <div style={{ fontFamily: 'Share Tech Mono', fontSize: '10px', color: 'rgba(0,212,255,0.55)', marginTop: '4px', marginBottom: '8px' }}>
                     Agent offline — run agent.py locally for live metrics
+                </div>
+            )}
+
+            {demoStats && (
+                <div style={{ fontFamily: 'Share Tech Mono', fontSize: '10px', color: '#f59e0b', marginTop: '4px', marginBottom: '8px' }}>
+                    Simulated data — demo mode
                 </div>
             )}
 
