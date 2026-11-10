@@ -16,6 +16,7 @@
 ## 🖼️ Interface & Visual Modes
 
 ### Cyan Theme — Default Spatial HUD
+
 ![J.A.R.V.I.S. Cyan Theme](public/screenshot-cyan.png)
 
 > **Cyan Baseline Mode:** Live 3D WebGL particle sphere with orbiting energy rings, real-time telemetry (CPU, RAM, Disk, Uptime), audio visualizer waveforms, atmospheric readings, satellite tracking, system topology mesh, and an interactive command bar.
@@ -23,6 +24,7 @@
 ---
 
 ### Purple Theme — AI Speaking / Voice Reactive
+
 ![J.A.R.V.I.S. Purple Theme](public/screenshot-purple.png)
 
 > **Dynamic Voice & Theme Switcher:** Live reactive violet-blue particle storm driven by ElevenLabs TTS FFT analysis. HUD status displays *"Relaying response..."* and logs assistant lifecycle events in real time.
@@ -59,6 +61,7 @@
 
 ## 📐 System Architecture
 
+```mermaid
 flowchart TD
 
 subgraph group_assistant["Assistant workflow"]
@@ -98,14 +101,17 @@ node_chat -->|"requests completion"| node_groq
 node_chat -->|"routes speech"| node_tts
 node_app -.->|"requests audio"| node_tts
 node_tts -->|"requests synthesis"| node_eleven
+
 node_app -->|"renders HUD"| node_reactor
 node_reactor -->|"renders reactor"| node_reactor3d
 node_app -->|"renders telemetry"| node_vitals
 node_app -->|"renders panels"| node_panels
 node_app -->|"renders tools"| node_tools
 node_app -->|"renders settings"| node_settings
+
 node_settings -->|"fetches key status"| node_settingsapi
 node_app -.->|"requests weather"| node_weather
+
 node_app -->|"uses connection hook"| node_daemonhook
 node_daemonhook -->|"HTTP and WebSocket"| node_daemon
 
@@ -136,6 +142,7 @@ class node_reactor,node_reactor3d,node_vitals,node_panels,node_tools,node_settin
 class node_weather,node_settingsapi toneMint
 class node_daemonhook,node_daemon toneRose
 class node_groq,node_speech,node_eleven toneIndigo
+```
 
 ---
 
@@ -155,13 +162,12 @@ class node_groq,node_speech,node_eleven toneIndigo
 | **System Terminal** | Right | Diagnostic initialization messages and pending command prompts |
 | **Process Monitor (Modal)** | Popout | Top resource-consuming processes with PID termination capability |
 
-
-
 ---
 
 ## 🛠️ Tool Calling & Capabilities
 
 The assistant orchestrates 14 specialized function calls:
+
 1. `search_web`: Live internet searches via Serper API.
 2. `search_news`: Latest headline queries.
 3. `get_weather`: Geolocation-based atmospheric readings.
@@ -182,6 +188,7 @@ The assistant orchestrates 14 specialized function calls:
 ## 🚀 Getting Started
 
 ### 1. Repository Setup
+
 ```bash
 git clone https://github.com/nilanjanajui/jarvis.git
 cd jarvis
@@ -189,7 +196,9 @@ npm install
 ```
 
 ### 2. Environment Configuration
+
 Create a `.env.local` file in the root directory:
+
 ```env
 GROQ_API_KEY=your_groq_api_key          # Required: Core LLM logic
 SERPER_API_KEY=your_serper_api_key      # Required: Web search & news
@@ -197,19 +206,24 @@ ELEVENLABS_API_KEY=your_elevenlabs_key  # Optional: High-fidelity voice (falls b
 ```
 
 ### 3. Launch Development Server
+
 ```bash
 npm run dev
 ```
+
 Open **http://localhost:3000** in Chrome or Edge.
 
 ### 4. Local OS Daemon Setup (Optional)
+
 To enable desktop app launching, process monitoring, and real host metrics:
+
 ```bash
 python3 -m venv jarvis-env
 source jarvis-env/bin/activate          # On Windows: jarvis-env\Scripts\activate
 pip install flask flask-cors psutil websockets
 python agent.py
 ```
+
 *Note: If `agent.py` is not running or the app is accessed on Vercel, demo fallback activates automatically.*
 
 ---
