@@ -59,35 +59,7 @@
 
 ## 📐 System Architecture
 
-```mermaid
-graph TD
-    subgraph Browser ["Web Browser — Next.js 16 Spatial HUD"]
-        User(["Input: Voice / Keyboard Text Bar"]) --> Routing{Input Mode}
-        Routing -->|Voice| Speech[Web Speech API]
-        Routing -->|Text Bar| ChatRoute["/api/chat — Groq AI (Tool Calling)"]
-        Speech --> ChatRoute
-        
-        ChatRoute --> TTS["/api/speak — ElevenLabs TTS + Fallback"]
-        ChatRoute --> Tools["14 AI Tool Functions"]
-        
-        Mouse(["Mouse Coordinates"]) --> Parallax[Spatial Parallax Engine]
-        TTS --> AudioAnalyser[Web Audio AnalyserNode]
-        AudioAnalyser --> Reactor["3D Arc Reactor — Three.js"]
-        
-        SpatialAudio[HRTF Spatial Audio] --> PannerNode["3D Directional Sound"]
-        Panels["Physics Draggable Panels"] --> Springs["Spring + Momentum Engine"]
-        
-        UI["HUD Components"] <--> WsHook["useLocalAgentWs Hook (Live / Demo Mode)"]
-    end
-
-    subgraph LocalOS ["Host System Daemon — Python agent.py (Optional)"]
-        WsHook <-->|"WebSocket :5002"| WSIPC["Live Telemetry Stream"]
-        WsHook <-->|"HTTP REST :5001"| REST["Flask REST Engine"]
-        REST --> Apps["Application Launcher"]
-        REST --> Stats["psutil CPU / RAM / Disk Metrics"]
-        REST --> Process["Process Monitor & Termination"]
-    end
-```
+[![Architecture diagram of nilanjanajui/jarvis](https://gitdiagram.com/nilanjanajui/jarvis/diagram.png)](https://gitdiagram.com/nilanjanajui/jarvis?utm_source=readme&utm_medium=picture)
 
 ---
 
