@@ -1,10 +1,15 @@
-export async function GET(req) {
-    const { searchParams } = new URL(req.url);
-    const lat = searchParams.get('lat');
-    const lon = searchParams.get('lon');
+import { rateLimit } from '@/lib/rateLimit';
 
-    if (!lat || !lon) {
-        return Response.json({ error: 'Missing lat/lon' }, { status: 400 });
+export async function GET(req) {
+    if (!rateLimit(req, { limit: 30 })) {
+        return Response.json({ error: 'Too many requests' }, { status: 429 });
+    }
+    const { searchParams } = new URL(req.url);
+    const lat = Number(searchParams.get('lat'));
+    const lon = Number(searchParams.get('lon'));
+
+    if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) {
+        return Response.json({ error: 'Invalid lat/lon' }, { status: 400 });
     }
 
     try {
