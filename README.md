@@ -40,7 +40,7 @@
 
 - 🌐 **Vercel Hosted Demo Mode:**
   - Automatic detection when hosted away from `localhost` with an unreachable desktop daemon.
-  - Smooth random-walk simulated telemetry metrics for CPU, RAM, and Disk in [BioMetrics.jsx](file:///home/nilanjana/Web%20Development/jarvis/src/components/BioMetrics.jsx).
+  - Smooth random-walk simulated telemetry metrics for CPU, RAM, and Disk in [BioMetrics.jsx](src/components/BioMetrics.jsx).
   - Explicit status indicator: `◈ DEMO · SIMULATED HOST DATA`.
   - Desktop-only actions (`open_app`, `volume`, `media`) log safe simulated notifications rather than failing network calls.
 
@@ -224,7 +224,7 @@ pip install flask flask-cors psutil websockets
 python agent.py
 ```
 
-*Note: If `agent.py` is not running or the app is accessed on Vercel, demo fallback activates automatically.*
+*Note: On a hosted deployment (any host other than localhost) the app runs in demo mode with simulated host data. Locally, if `agent.py` is not running, the status bar shows AGENT OFFLINE and desktop actions are unavailable.*
 
 ---
 
@@ -234,7 +234,7 @@ python agent.py
 - **Cross-Origin Protection**: Validates incoming `Origin` and `Host` headers before processing commands.
 - **URI Validation**: URL opening routines enforce strict `http:` / `https:` protocols.
 - **Execution Guard**: Destructive shell patterns (`rm -rf`, raw format commands) are intercepted and rejected.
-- **Rate-Limiting**: Edge API routes prevent Denial of Service and API quota depletion.
+- **Rate-Limiting**: Best-effort per-IP limits on `/api/chat`, `/api/speak` and `/api/weather` (in-memory, per serverless instance). They slow abuse and quota drain but are not a hard guarantee.
 
 ---
 
