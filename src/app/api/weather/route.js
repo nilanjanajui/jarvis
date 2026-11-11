@@ -4,9 +4,17 @@ export async function GET(req) {
     if (!rateLimit(req, { limit: 30 })) {
         return Response.json({ error: 'Too many requests' }, { status: 429 });
     }
+
     const { searchParams } = new URL(req.url);
-    const lat = Number(searchParams.get('lat'));
-    const lon = Number(searchParams.get('lon'));
+    const rawLat = searchParams.get('lat');
+    const rawLon = searchParams.get('lon');
+
+    if (!rawLat || !rawLon) {
+        return Response.json({ error: 'Missing lat/lon' }, { status: 400 });
+    }
+
+    const lat = Number(rawLat);
+    const lon = Number(rawLon);
 
     if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) {
         return Response.json({ error: 'Invalid lat/lon' }, { status: 400 });
