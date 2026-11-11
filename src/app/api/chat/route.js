@@ -410,6 +410,25 @@ async function createCompletionWithFallback(params) {
     throw lastErr;
 }
 
+const isTransient = (err) =>
+  /terminated|fetch failed|socket|ECONNRESET|other side closed/i.test(
+    `${err?.message || ''} ${err?.cause?.message || ''} ${err?.code || ''} ${err?.cause?.code || ''}`
+  );
+
+async function streamWithRetry(params, onChunk, retries = 1) {
+  for (let attempt = 0; ; attempt++) {
+    let received = false;
+    try {
+      const stream = await createCompletionWithFallback(params);
+      for await (const chunk of stream) { received = true; onChunk(chunk); }
+      return;
+    } catch (err) {
+      if (received || attempt >= retries || !isTransient(err)) throw err;
+      console.warn('[Groq] stream dropped before any data, retrying:', err.message);
+    }
+  }
+}
+
 // ── Route handler ────────────────────────────────────────────────────────────
 
 export async function POST(req) {
@@ -444,38 +463,39 @@ export async function POST(req) {
 
             try {
                 // ── First streamed call — decides on tools while streaming any direct text ──
-                const first = await createCompletionWithFallback({
-                    messages: [{ role: 'system', content: SYSTEM }, ...messages],
-                    tools,
-                    tool_choice: 'auto',
-                    stream: true,
-                    max_tokens: 700,
-                });
-
                 let textAcc = '';
                 let toolCallsAcc = {};
                 let sawToolCall = false;
 
-                for await (const chunk of first) {
-                    const delta = chunk.choices?.[0]?.delta;
-                    if (!delta) continue;
+                await streamWithRetry(
+                    {
+                        messages: [{ role: 'system', content: SYSTEM }, ...messages],
+                        tools,
+                        tool_choice: 'auto',
+                        stream: true,
+                        max_tokens: 700,
+                    },
+                    (chunk) => {
+                        const delta = chunk.choices?.[0]?.delta;
+                        if (!delta) return;
 
-                    if (delta.content) {
-                        textAcc += delta.content;
-                        send({ type: 'delta', text: delta.content });
-                    }
+                        if (delta.content) {
+                            textAcc += delta.content;
+                            send({ type: 'delta', text: delta.content });
+                        }
 
-                    if (delta.tool_calls) {
-                        sawToolCall = true;
-                        for (const tc of delta.tool_calls) {
-                            const idx = tc.index ?? 0;
-                            if (!toolCallsAcc[idx]) toolCallsAcc[idx] = { id: '', name: '', arguments: '' };
-                            if (tc.id) toolCallsAcc[idx].id = tc.id;
-                            if (tc.function?.name) toolCallsAcc[idx].name += tc.function.name;
-                            if (tc.function?.arguments) toolCallsAcc[idx].arguments += tc.function.arguments;
+                        if (delta.tool_calls) {
+                            sawToolCall = true;
+                            for (const tc of delta.tool_calls) {
+                                const idx = tc.index ?? 0;
+                                if (!toolCallsAcc[idx]) toolCallsAcc[idx] = { id: '', name: '', arguments: '' };
+                                if (tc.id) toolCallsAcc[idx].id = tc.id;
+                                if (tc.function?.name) toolCallsAcc[idx].name += tc.function.name;
+                                if (tc.function?.arguments) toolCallsAcc[idx].arguments += tc.function.arguments;
+                            }
                         }
                     }
-                }
+                );
 
                 // No tools needed — the text above was already streamed live, we're done
                 if (!sawToolCall) {
@@ -512,16 +532,17 @@ export async function POST(req) {
                 send({ type: 'action', action: actions[0] ?? null, actions });
 
                 // ── Second streamed call — final narrated reply using tool results ──
-                const final = await createCompletionWithFallback({
-                    messages: [{ role: 'system', content: SYSTEM }, ...messages, assistantMsg, ...toolResults],
-                    stream: true,
-                    max_tokens: 700,
-                });
-
-                for await (const chunk of final) {
-                    const delta = chunk.choices?.[0]?.delta;
-                    if (delta?.content) send({ type: 'delta', text: delta.content });
-                }
+                await streamWithRetry(
+                    {
+                        messages: [{ role: 'system', content: SYSTEM }, ...messages, assistantMsg, ...toolResults],
+                        stream: true,
+                        max_tokens: 700,
+                    },
+                    (chunk) => {
+                        const delta = chunk.choices?.[0]?.delta;
+                        if (delta?.content) send({ type: 'delta', text: delta.content });
+                    }
+                );
 
                 send({ type: 'done' });
                 controller.close();
@@ -530,7 +551,9 @@ export async function POST(req) {
                 console.error('[/api/chat] stream error:', err);
                 const message = err?.status === 429
                     ? "I've hit the rate limit, sir. Give me a moment before your next request."
-                    : (err.message || 'Something went wrong processing that.');
+                    : isTransient(err)
+                        ? "My connection to the AI service dropped, sir. Please try again."
+                        : (err.message || 'Something went wrong processing that.');
                 send({ type: 'error', message });
                 controller.close();
             }
